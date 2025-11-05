@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Locale</title>
+  <style>
+    :root {
+      --bg-color: #f7f9fb;
+      --text-color: #1a1a1a;
+      --accent-color: #3498db;
+      --msg-bg: #e8f1fc;
+      --user-msg-bg: #d1f7d6;
+    }
+    [data-theme="dark"] {
+      --bg-color: #121212;
+      --text-color: #e0e0e0;
+      --accent-color: #00aaff;
+      --msg-bg: #1f1f1f;
+      --user-msg-bg: #2b2b2b;
+    }
+
+    body {
+      font-family: "Poppins", sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: 0.3s;
+    }
+
+    header {
+      background: var(--accent-color);
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #themeToggle {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      font-size: 1rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    #themeToggle:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    #loginScreen, #chatScreen {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      padding: 1rem;
+    }
+
+    #loginScreen input {
+      padding: 0.8rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--accent-color);
+      width: 80%;
+      margin-bottom: 1rem;
+    }
+
+    #loginScreen button {
+      padding: 0.7rem 1.5rem;
+      border: none;
+      background: var(--accent-color);
+      color: white;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    #loginScreen button:hover {
+      opacity: 0.8;
+    }
+
+    #chatBox {
+      flex: 1;
+      overflow-y: auto;
+      width: 100%;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+
+    .msg {
+      margin: 0.5rem 0;
+      padding: 0.7rem 1rem;
+      border-radius: 12px;
+      width: fit-content;
+      max-width: 80%;
+      word-wrap: break-word;
+      background: var(--msg-bg);
+    }
+
+    .me {
+      background: var(--user-msg-bg);
+      margin-left: auto;
+    }
+
+    #messageForm {
+      display: flex;
+      padding: 1rem;
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    #messageInput {
+      flex: 1;
+      padding: 0.7rem;
+      border: 1px solid var(--accent-color);
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    #sendBtn {
+      margin-left: 0.5rem;
+      background: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    #sendBtn:hover {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span>💬 Chat Locale</span>
+    <button id="themeToggle">🌙</button>
+  </header>
+
+  <div id="loginScreen">
+    <h2>Inserisci il tuo nome per iniziare</h2>
+    <input type="text" id="username" placeholder="Il tuo nome..." />
+    <button id="enterChat">Entra nella chat</button>
+  </div>
+
+  <div id="chatScreen" style="display:none;">
+    <div id="chatBox"></div>
+    <form id="messageForm">
+      <input id="messageInput" type="text" placeholder="Scrivi un messaggio..." autocomplete="off" />
+      <button id="sendBtn" type="submit">Invia</button>
+    </form>
+  </div>
+
+  <script>
+    const loginScreen = document.getElementById("loginScreen");
+    const chatScreen = document.getElementById("chatScreen");
+    const usernameInput = document.getElementById("username");
+    const enterChat = document.getElementById("enterChat");
+    const chatBox = document.getElementById("chatBox");
+    const messageForm = document.getElementById("messageForm");
+    const messageInput = document.getElementById("messageInput");
+    const themeToggle = document.getElementById("themeToggle");
+
+    let username = localStorage.getItem("chatUser") || "";
+
+    // login
+    enterChat.onclick = () => {
+      if (usernameInput.value.trim() !== "") {
+        username = usernameInput.value.trim();
+        localStorage.setItem("chatUser", username);
+        loginScreen.style.display = "none";
+        chatScreen.style.display = "flex";
+      }
+    };
+
+    if (username) {
+      loginScreen.style.display = "none";
+      chatScreen.style.display = "flex";
+    }
+
+    // tema giorno/notte
+    themeToggle.onclick = () => {
+      document.body.dataset.theme = document.body.dataset.theme === "dark" ? "" : "dark";
+      themeToggle.textContent = document.body.dataset.theme === "dark" ? "☀️" : "🌙";
+    };
+
+    // invio messaggi
+    messageForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text) return;
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "msg me";
+      msgDiv.textContent = `${username}: ${text}`;
+      chatBox.appendChild(msgDiv);
+      messageInput.value = "";
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  </script>
+</body>
+</html>
