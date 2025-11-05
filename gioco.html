@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gioco della Classe</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      background: #f6f8fa;
+      color: #111;
+      transition: 0.3s;
+    }
+    body.dark { background: #0f172a; color: #fff; }
+    .container {
+      margin-top: 10vh;
+      padding: 20px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      display: inline-block;
+      min-width: 320px;
+    }
+    body.dark .container { background: rgba(25,30,45,0.9); }
+    .dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    .dot.green { background: #22c55e; }
+    .dot.yellow { background: #facc15; }
+    .dot.red { background: #ef4444; }
+    button {
+      background: #0078ff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    input, select {
+      margin: 5px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    #themeToggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 1.2em;
+      cursor: pointer;
+      color: inherit;
+    }
+  </style>
+</head>
+<body>
+  <button id="themeToggle">☀️</button>
+  <div class="container">
+    <h2>🎮 Gioco della Classe</h2>
+    <div class="status">
+      <span id="dot" class="dot red"></span>
+      <span id="statusText">Nessun gioco in corso</span>
+    </div>
+    <p id="gameName">–</p>
+    <a id="gameLink" href="#" target="_blank">Nessun link disponibile</a><br><br>
+    <button id="adminBtn">Login Admin</button>
+
+    <div id="adminPanel" style="display:none;">
+      <input type="text" id="inputName" placeholder="Nome del gioco"><br>
+      <input type="url" id="inputLink" placeholder="Link del gioco"><br>
+      <select id="inputStatus">
+        <option value="red">🔴 Non sta giocando</option>
+        <option value="yellow">🟡 Si prepara a giocare</option>
+        <option value="green">🟢 Sta giocando</option>
+      </select><br>
+      <input type="password" id="inputPass" placeholder="Password admin"><br>
+      <button id="saveBtn">Salva</button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Importa Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
+  authDomain: "classe4a-game.firebaseapp.com",
+  projectId: "classe4a-game",
+  storageBucket: "classe4a-game.firebasestorage.app",
+  messagingSenderId: "558916476831",
+  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const gameRef = ref(db, "gameStatus");
+
+    const dot = document.getElementById("dot");
+    const statusText = document.getElementById("statusText");
+    const gameName = document.getElementById("gameName");
+    const gameLink = document.getElementById("gameLink");
+
+    const inputName = document.getElementById("inputName");
+    const inputLink = document.getElementById("inputLink");
+    const inputStatus = document.getElementById("inputStatus");
+    const inputPass = document.getElementById("inputPass");
+    const adminPanel = document.getElementById("adminPanel");
+    const ADMIN_PASS = "classe4a";
+
+    document.getElementById("adminBtn").onclick = () => {
+      const pass = prompt("Password admin:");
+      if (pass === ADMIN_PASS) {
+        adminPanel.style.display = "block";
+      } else {
+        alert("Password errata ❌");
+      }
+    };
+
+    document.getElementById("saveBtn").onclick = async () => {
+      if (inputPass.value !== ADMIN_PASS) {
+        alert("Password errata ❌");
+        return;
+      }
+      await set(gameRef, {
+        name: inputName.value || "-",
+        link: inputLink.value || "#",
+        status: inputStatus.value
+      });
+      alert("✅ Dati salvati per tutti!");
+      adminPanel.style.display = "none";
+    };
+
+    // Ascolta in tempo reale
+    onValue(gameRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      gameName.textContent = data.name || "-";
+      gameLink.href = data.link || "#";
+      gameLink.textContent = data.link && data.link !== "#" ? "Vai al gioco" : "Nessun link disponibile";
+      dot.className = "dot " + (data.status || "red");
+      statusText.textContent =
+        data.status === "green" ? "Classe sta giocando" :
+        data.status === "yellow" ? "Classe si sta preparando" :
+        "Nessun gioco in corso";
+    });
+
+    // Tema giorno/notte
+    const themeBtn = document.getElementById("themeToggle");
+    themeBtn.onclick = () => {
+      document.body.classList.toggle("dark");
+      themeBtn.textContent = document.body.classList.contains("dark") ? "🌙" : "☀️";
+    };
+  </script>
+</body>
+</html>
