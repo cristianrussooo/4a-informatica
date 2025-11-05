@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orario 4A Informatica</title>
+<style>
+  :root {
+    --bg-light: #f4f6f8;
+    --bg-dark: #1e1e1e;
+    --text-light: #333;
+    --text-dark: #f5f5f5;
+    --accent: #2196f3;
+    --highlight: #ffb300;
+    --card-bg-light: #ffffff;
+    --card-bg-dark: #2c2c2c;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    background-color: var(--bg-light);
+    color: var(--text-light);
+    transition: all 0.4s ease;
+  }
+  body.dark {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: var(--accent);
+    color: white;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+
+  .theme-toggle {
+    background: white;
+    color: var(--accent);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  #nextLessonBox {
+    text-align: center;
+    margin: 1.5rem auto;
+    padding: 1rem 2rem;
+    width: fit-content;
+    background-color: var(--highlight);
+    color: #000;
+    font-weight: bold;
+    border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+  }
+
+  #nextLessonBox.hidden {
+    opacity: 0.6;
+    background-color: #ccc;
+    color: #555;
+  }
+
+  table {
+    width: 95%;
+    max-width: 1000px;
+    margin: 1rem auto 2rem;
+    border-collapse: collapse;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  th, td {
+    padding: 0.8rem;
+    text-align: center;
+    border-bottom: 1px solid #ccc;
+  }
+
+  th {
+    background: var(--accent);
+    color: white;
+  }
+
+  tr:nth-child(even) {
+    background-color: var(--card-bg-light);
+  }
+  body.dark tr:nth-child(even) {
+    background-color: var(--card-bg-dark);
+  }
+
+  tr.highlight {
+    background-color: var(--highlight) !important;
+    color: black;
+    font-weight: bold;
+    font-size: 1.05em;
+    transition: background-color 0.3s ease;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.9rem;
+    opacity: 0.7;
+  }
+
+  /* 🔹 Stili adattivi */
+  body.mobile h1 { font-size: 1.2rem; }
+  body.mobile table { font-size: 0.9rem; width: 100%; }
+  body.mobile #nextLessonBox { font-size: 0.9rem; padding: 0.8rem 1.2rem; }
+
+  body.watch header { display: none; }
+  body.watch table { display: none; }
+  body.watch #nextLessonBox {
+    margin-top: 2rem;
+    font-size: 1rem;
+    width: 90%;
+  }
+  body.watch .footer { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Orario 4A Informatica</h1>
+  <button class="theme-toggle" onclick="toggleTheme()">Chiaro / Scuro</button>
+</header>
+
+<div id="nextLessonBox" class="hidden">Nessuna lezione successiva</div>
+
+<table id="timetable">
+  <thead>
+    <tr>
+      <th>Ora</th>
+      <th>Lunedì</th>
+      <th>Martedì</th>
+      <th>Mercoledì</th>
+      <th>Giovedì</th>
+      <th>Venerdì</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>08:10–09:00</td><td>INFORMATICA</td><td>ITALIANO</td><td>MATEMATICA</td><td>INGLESE</td><td>INGLESE</td></tr>
+    <tr><td>09:00–09:55</td><td>INGLESE</td><td>ITALIANO</td><td>SIS. E RETI</td><td>SIS. E RETI</td><td>ITALIANO</td></tr>
+    <tr><td>10:05–11:00</td><td>MATEMATICA</td><td>SIS. E RETI</td><td>TPSI</td><td>SIS. E RETI</td><td>INFORMATICA</td></tr>
+    <tr><td>11:00–11:50</td><td>ITALIANO</td><td>TECNOLOGIE</td><td>TECNOLOGIE</td><td>ITALIANO</td><td>INFORMATICA</td></tr>
+    <tr><td>12:00–12:50</td><td>S. MOTORIA</td><td>INFORMATICA</td><td>STORIA</td><td>INFORMATICA</td><td>INFORMATICA</td></tr>
+    <tr><td>12:50–13:40</td><td>S. MOTORIA</td><td>RELIGIONE</td><td>STORIA</td><td>INFORMATICA</td><td>MATEMATICA</td></tr>
+    <tr><td>14:10–15:00</td><td></td><td></td><td></td><td></td><td>MATEMATICA</td></tr>
+    <tr><td>15:00–15:50</td><td></td><td></td><td></td><td></td><td>TECNOLOGIE</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">Aggiornamento automatico ogni minuto</div>
+
+<script>
+const rows = document.getElementById("timetable").getElementsByTagName("tr");
+const nextLessonBox = document.getElementById("nextLessonBox");
+
+const schedule = [
+  { start: "08:10", end: "09:00" },
+  { start: "09:00", end: "09:55" },
+  { start: "10:05", end: "11:00" },
+  { start: "11:00", end: "11:50" },
+  { start: "12:00", end: "12:50" },
+  { start: "12:50", end: "13:40" },
+  { start: "14:10", end: "15:00" },
+  { start: "15:00", end: "15:50" }
+];
+const giorni = ["", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
+
+function updateNextLesson() {
+  const now = new Date();
+  const day = now.getDay();
+  const time = now.toTimeString().substring(0,5);
+  let found = false;
+
+  for (let i = 1; i < rows.length; i++) rows[i].classList.remove("highlight");
+
+  if (day < 1 || day > 5) {
+    nextLessonBox.textContent = "Nessuna lezione (weekend)";
+    nextLessonBox.classList.add("hidden");
+    return;
+  }
+
+  const todayCol = day;
+  for (let i = 0; i < schedule.length; i++) {
+    if (time < schedule[i].start) {
+      const row = rows[i + 1];
+      row.classList.add("highlight");
+      const materia = row.cells[todayCol].textContent || "Nessuna lezione";
+      const orario = schedule[i].start + " - " + schedule[i].end;
+      nextLessonBox.textContent = "Prossima lezione: " + materia + " (" + giorni[day] + " " + orario + ")";
+      nextLessonBox.classList.remove("hidden");
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    nextLessonBox.textContent = "Giornata scolastica terminata";
+    nextLessonBox.classList.add("hidden");
+  }
+}
+
+function toggleTheme() {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
+}
+
+// 🔹 Riconoscimento dispositivo
+function detectDevice() {
+  const ua = navigator.userAgent;
+  if (/Watch|WatchOS|AppleWatch/i.test(ua)) {
+    document.body.classList.add("watch");
+  } else if (/Mobi|Android|iPhone/i.test(ua)) {
+    document.body.classList.add("mobile");
+  } else {
+    document.body.classList.add("desktop");
+  }
+}
+
+// Tema salvato
+if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
+
+detectDevice();
+updateNextLesson();
+setInterval(updateNextLesson, 60000);
+</script>
+</body>
+</html>
