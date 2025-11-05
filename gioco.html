@@ -89,27 +89,19 @@
 
   <!-- Firebase SDK -->
   <script type="module">
-    // Importa Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
-  authDomain: "classe4a-game.firebaseapp.com",
-  projectId: "classe4a-game",
-  storageBucket: "classe4a-game.firebasestorage.app",
-  messagingSenderId: "558916476831",
-  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+    // ✅ CONFIGURAZIONE FIREBASE DEL TUO PROGETTO
+    const firebaseConfig = {
+      apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
+      authDomain: "classe4a-game.firebaseapp.com",
+      databaseURL: "https://classe4a-game-default-rtdb.firebaseio.com",
+      projectId: "classe4a-game",
+      storageBucket: "classe4a-game.firebasestorage.app",
+      messagingSenderId: "558916476831",
+      appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -150,7 +142,7 @@ const app = initializeApp(firebaseConfig);
       adminPanel.style.display = "none";
     };
 
-    // Ascolta in tempo reale
+    // Ascolta aggiornamenti in tempo reale
     onValue(gameRef, (snapshot) => {
       const data = snapshot.val() || {};
       gameName.textContent = data.name || "-";
