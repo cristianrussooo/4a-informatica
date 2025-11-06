@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LudosGPT</title>
+<link rel="icon" href="https://ludospatia.wordpress.com/wp-content/uploads/2025/05/background-eraser.png?w=96&h=96" />
+<style>
+  :root{
+    --bg:#0e0e10; --panel:rgba(255,255,255,0.04);
+    --muted:#9aa3b2; --accent1:#7b61ff; --accent2:#00e5ff;
+    --glass-border: rgba(255,255,255,0.06);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;color:#e6eef8;background:linear-gradient(180deg,#07070a 0%, #0e0e12 100%);}
+  header{display:flex;align-items:center;gap:12px;padding:18px 28px;background:linear-gradient(90deg, rgba(123,97,255,0.12), rgba(0,229,255,0.06));backdrop-filter: blur(6px);box-shadow:0 4px 30px rgba(0,0,0,0.6);}
+  #logo{width:44px;height:44px;border-radius:10px;background:url('https://ludospatia.wordpress.com/wp-content/uploads/2025/05/background-eraser.png?w=96&h=96') center/cover no-repeat;box-shadow:0 6px 20px rgba(123,97,255,0.08) inset}
+  h1{font-size:18px;margin:0}
+  main{display:grid;grid-template-columns:360px 1fr;gap:20px;padding:22px;max-width:1200px;margin:18px auto;width:calc(100% - 48px)}
+  .panel{background:var(--panel);border:1px solid var(--glass-border);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.6)}
+  .greeting{display:flex;gap:12px;align-items:center}
+  .muted{color:var(--muted);font-size:13px}
+  .input, .btn, .select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .btn{background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#08101a;font-weight:600;border:0;cursor:pointer;box-shadow:0 8px 20px rgba(123,97,255,0.08);transition:transform .12s ease}
+  .btn:active{transform:translateY(1px)}
+  .small{padding:8px 10px;font-size:13px}
+  label{font-size:13px;color:var(--muted);display:block;margin:10px 0 6px}
+  #chatWrap{display:flex;flex-direction:column;height:calc(100vh - 140px)}
+  #history{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+  .bubble{max-width:72%;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,0.03);backdrop-filter: blur(2px);border:1px solid rgba(255,255,255,0.02);animation:fadeIn .18s ease}
+  .bubble.user{margin-left:auto;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border:1px solid rgba(123,97,255,0.14)}
+  .bubble.ai{border-left:3px solid rgba(123,97,255,0.18);position:relative}
+  .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+  #composer{display:flex;gap:10px;padding:14px;border-top:1px solid rgba(255,255,255,0.02);align-items:center}
+  #msg{flex:1;padding:12px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit;outline:none}
+  #sendBtn{min-width:110px}
+  .badge{display:inline-block;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:12px;color:var(--muted)}
+  .adminArea{display:flex;flex-direction:column;gap:12px}
+  .row{display:flex;gap:10px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);font-size:13px;color:var(--muted)}
+  th{color:#d7d7f9;text-align:left}
+  .typing{height:10px;display:flex;gap:4px;align-items:center}
+  .dot{width:8px;height:8px;border-radius:50%;background:rgba(123,97,255,0.8);opacity:0;animation:blink 1s infinite}
+  .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+  @keyframes blink{0%{opacity:0}40%{opacity:1}80%{opacity:0}100%{opacity:0}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media(max-width:980px){
+    main{grid-template-columns:1fr;padding:12px}
+    #chatWrap{height:auto;min-height:60vh}
+  }
+  footer{color:var(--muted);font-size:13px;padding:12px 0;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div id="logo"></div>
+  <div>
+    <h1>LudosGPT</h1>
+    <div class="muted">La prima Intelligenza Artificiale ludopatica</div>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="leftPanel">
+    <div id="authBox">
+      <div class="greeting">
+        <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(90deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">LG</div>
+        <div>
+          <div id="whoami"><strong>Benvenuto</strong></div>
+          <div class="muted" id="subwho">Accedi o crea un account per salvare le chat</div>
+        </div>
+      </div>
+
+      <div id="authForms" style="margin-top:14px">
+        <label>Email</label>
+        <input id="email" class="input" placeholder="tuo@email.it" />
+        <label>Password</label>
+        <input id="password" type="password" class="input" placeholder="••••••" />
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="loginBtn" class="btn small">Accedi</button>
+          <button id="guestBtn" class="btn small" style="background:rgba(255,255,255,0.06)">Accesso Guest</button>
+        </div>
+
+        <hr style="margin:12px 0;border-color:rgba(255,255,255,0.03)" />
+
+        <label>Registrazione (richiesta approvazione in beta)</label>
+        <input id="regName" class="input" placeholder="Nome e Cognome" />
+        <input id="regEmail" class="input" placeholder="Email" />
+        <input id="regPass" class="input" placeholder="Password" type="password" />
+        <button id="registerBtn" class="btn small" style="margin-top:8px">Registrati</button>
+      </div>
+    </div>
+
+    <div id="keyBox" style="margin-top:14px">
+      <label>OpenAI API Key (facoltativa)</label>
+      <input id="apiKeyInput" class="input" placeholder="Inserisci la tua OpenAI API key (opzionale)" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="saveKey" class="btn small">Salva chiave</button>
+        <button id="clearKey" class="btn small" style="background:rgba(255,255,255,0.06)">Rimuovi</button>
+      </div>
+      <div class="muted" style="font-size:12px;margin-top:8px"></div>
+    </div> 
+
+    <div id="adminPanel" style="margin-top:18px;display:none">
+      <hr style="border-color:rgba(255,255,255,0.03)" />
+      <h3 style="margin:8px 0 12px 0">Pannello Admin</h3>
+      <div class="adminArea">
+        <div class="card">
+          <h4>Utenti in attesa</h4>
+          <div id="pendingList" class="muted">Caricamento...</div>
+        </div>
+
+        <div class="card">
+          <h4>Utenti registrati</h4>
+          <div id="usersList" class="muted">Caricamento...</div>
+        </div>
+
+        <div class="card">
+          <h4>Gestione chat</h4>
+          <div id="allChats" class="muted">Caricamento...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="rightPanel">
+    <div id="chatWrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div class="muted">Conversazione con</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <strong>LudosGPT</strong>
+            <span class="badge" id="guestBadge" style="display:none">Guest</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <img src="https://ludospatia.wordpress.com/wp-content/uploads/2025/05/background-eraser.png?w=96&h=96" alt="logo" style="width:44px;height:44px;border-radius:8px" />
+        </div>
+      </div>
+
+      <div id="history" aria-live="polite"></div>
+
+      <div id="composer">
+        <input id="msg" placeholder="Scrivi un messaggio..." autocomplete="off" />
+        <button id="sendBtn" class="btn">Invia</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>© LudosGPT — Beta 0.0.1 2025</footer>
+
+<script type="module">
+/* ========== CONFIG FIREBASE ========== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getDatabase, ref, set, push, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+/* YOUR FIREBASE CONFIG (you provided earlier) */
+const firebaseConfig = {
+  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
+  authDomain: "classe4a-game.firebaseapp.com",
+  databaseURL: "https://classe4a-game-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "classe4a-game",
+  storageBucket: "classe4a-game.appspot.com",
+  messagingSenderId: "558916476831",
+  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+/* ========== PLACE YOUR OPENAI KEY HERE (INTEGRATED VERSION) ========== */
+/* Replace the string below with your real key (sk-...) */
+const INTEGRATED_OPENAI_KEY = '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';
+
+/* ========== ELEMENTS ========== */
+const emailEl = document.getElementById('email');
+const passEl = document.getElementById('password');
+const loginBtn = document.getElementById('loginBtn');
+const guestBtn = document.getElementById('guestBtn');
+const registerBtn = document.getElementById('registerBtn');
+const regNameEl = document.getElementById('regName');
+const regEmailEl = document.getElementById('regEmail');
+const regPassEl = document.getElementById('regPass');
+
+const whoami = document.getElementById('whoami');
+const subwho = document.getElementById('subwho');
+
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveKeyBtn = document.getElementById('saveKey');
+const clearKeyBtn = document.getElementById('clearKey');
+
+const adminPanel = document.getElementById('adminPanel');
+const pendingList = document.getElementById('pendingList');
+const usersList = document.getElementById('usersList');
+const allChats = document.getElementById('allChats');
+
+const historyEl = document.getElementById('history');
+const msgInput = document.getElementById('msg');
+const sendBtn = document.getElementById('sendBtn');
+const guestBadge = document.getElementById('guestBadge');
+
+let currentUser = null;
+let currentProfile = null;
+let openaiKey = INTEGRATED_OPENAI_KEY || localStorage.getItem('ludos_openai_key') || '';
+let guestMsgCount = 2
+
+/* ========== UTIL UI ========== */
+function showBubble(text, who='ai', meta=''){
+  const d = document.createElement('div');
+  d.className = 'bubble ' + (who==='user'?'user':'ai');
+  if(meta) d.innerHTML = `<div class="meta">${meta}</div>` + `<div>${text}</div>`; else d.innerHTML = `<div>${text}</div>`;
+  historyEl.appendChild(d);
+  historyEl.scrollTop = historyEl.scrollHeight;
+}
+function showTyping(){
+  const div = document.createElement('div');
+  div.className = 'bubble ai';
+  div.id = 'typingBubble';
+  div.innerHTML = `<div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+  historyEl.appendChild(div);
+  historyEl.scrollTop = historyEl.scrollHeight;
+}
+function removeTyping(){ const t = document.getElementById('typingBubble'); if(t) t.remove(); }
+
+/* ========== OPENAI CALL (uses integrated key by default) ========== */
+async function callOpenAI(prompt, maxTokens=700){
+  const key = (localStorage.getItem('ludos_openai_key')) || INTEGRATED_OPENAI_KEY;
+  if(!key) throw new Error('OpenAI API key mancante. Inseriscila nel pannello a sinistra o sostituisci INTEGRATED_OPENAI_KEY.');
+  const system = `Sei LudosGPT, assistente intelligente, gentile, fantasioso e competente. Rispondi chiaramente e in modo utile.`;
+  const messages = [{role: "system", content: system},{role:"user", content: prompt}];
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
+    body: JSON.stringify({ model: "gpt-4o-mini", messages, max_tokens: maxTokens, temperature: 0.9 })
+  });
+  if(!res.ok){
+    const txt = await res.text();
+    throw new Error('OpenAI error: ' + res.status + ' ' + txt);
+  }
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
+/* ========== AUTH HELPERS ========== */
+async function ensureAdminExists(){
+  const adminEmail = 'admin@ludosgpt.it';
+  const adminPass = 'admin';
+  try {
+    await signInWithEmailAndPassword(auth, adminEmail, adminPass);
+    await signOut(auth);
+  } catch(e){
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
+      const uid = cred.user.uid;
+      await set(ref(db, 'users/' + uid), { name: 'Admin Ludos', email: adminEmail, approved: true, role: 'admin' });
+      await signOut(auth);
+    } catch(err){
+      console.warn('Admin bootstrap failed:', err.message);
+    }
+  }
+}
+
+/* ========== AUTH UI ========== */
+loginBtn.addEventListener('click', async ()=>{
+  const email = emailEl.value.trim(); const pass = passEl.value;
+  if(!email || !pass) return alert('Compila email e password');
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e){ alert('Login fallito: ' + e.message); }
+});
+
+guestBtn.addEventListener('click', ()=>{
+  currentUser = null;
+  currentProfile = { name: 'Guest', approved: false, role: 'guest' };
+  whoami.innerHTML = '<strong>Accesso come Guest (disabilitato) </strong>';
+  subwho.innerText = 'Hai 2 messaggi gratuiti, poi registrazione obbligatoria';
+  guestBadge.style.display = 'inline-block';
+  document.getElementById('authForms').style.display = 'none';
+});
+
+registerBtn.addEventListener('click', async ()=>{
+  const name = regNameEl.value.trim(); const email = regEmailEl.value.trim(); const pass = regPassEl.value;
+  if(!name || !email || !pass) return alert('Compila tutti i campi di registrazione');
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const uid = cred.user.uid;
+    await set(ref(db, 'users/' + uid), { name, email, approved: false, role: 'user' });
+    alert('Registrazione inviata. Attendi approvazione admin.');
+    await signOut(auth);
+  } catch(e){ alert('Errore registrazione: ' + e.message); }
+});
+
+/* ========== SAVE/CLEAR KEY UI ========== */
+apiKeyInput.value = localStorage.getItem('ludos_openai_key') || '';
+saveKeyBtn.addEventListener('click', ()=>{
+  const k = apiKeyInput.value.trim();
+  if(!k) return alert('Inserisci la chiave OpenAI');
+  localStorage.setItem('ludos_openai_key', k);
+  openaiKey = k;
+  alert('Chiave salvata localmente');
+});
+clearKeyBtn.addEventListener('click', ()=>{
+  localStorage.removeItem('ludos_openai_key'); openaiKey = INTEGRATED_OPENAI_KEY || '';
+  apiKeyInput.value = '';
+  alert('Chiave rimossa (se presente).');
+});
+
+/* ========== AUTH STATE ========== */
+onAuthStateChanged(auth, async (user)=>{
+  await ensureAdminExists();
+  if(!user){
+    currentUser = null; currentProfile = null;
+    adminPanel.style.display = 'none'; guestBadge.style.display = 'none';
+    whoami.innerHTML = '<strong>Benvenuto</strong>'; subwho.innerText = 'Accedi o registrati per salvare le chat';
+    document.getElementById('authForms').style.display = 'block';
+    return;
+  }
+  currentUser = user;
+  const snap = await get(ref(db, 'users/' + user.uid));
+  if(!snap.exists()){
+    await set(ref(db, 'users/' + user.uid), { name: user.email, email: user.email, approved: false, role: 'user' });
+    currentProfile = { name: user.email, approved: false, role: 'user' };
+  } else currentProfile = snap.val();
+  whoami.innerHTML = `<strong>${currentProfile.name || user.email}</strong>`;
+  subwho.innerText = currentProfile.approved ? 'Account approvato' : 'In attesa approvazione';
+  document.getElementById('authForms').style.display = 'none';
+  if(currentProfile.role === 'admin'){ adminPanel.style.display = 'block'; bindAdminLists(); } else adminPanel.style.display = 'none';
+  if(currentProfile.approved) loadUserChats(user.uid); else historyEl.innerHTML = '<div class="muted">Account non ancora approvato. Puoi leggere ma non salvare nuove chat.</div>';
+});
+
+/* ========== CHAT LOGIC ========== */
+sendBtn.addEventListener('click', handleSend);
+msgInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ handleSend(); e.preventDefault(); } });
+
+async function handleSend(){
+  const text = msgInput.value.trim(); if(!text) return;
+  if(!currentUser && (!currentProfile || currentProfile.role === 'guest')){
+    guestMsgCount++;
+    if(guestMsgCount > 2){ alert('Per utilizzare LudosGPT devi prima registrarti.'); return; }
+    showBubble(text, 'user', 'Guest'); msgInput.value = '';
+    try { showTyping(); const ai = await callOpenAI(text); removeTyping(); showBubble(ai, 'ai'); } catch(err){ removeTyping(); showBubble('Errore: ' + err.message, 'ai'); }
+    return;
+  }
+  showBubble(text, 'user', currentProfile.name || '');
+  msgInput.value = '';
+  if(currentProfile.approved){
+    const chatRef = push(ref(db, `chats/${currentUser.uid}`)); await set(chatRef, { from: currentUser.uid, text, time: Date.now(), role: 'user' });
+  }
+  try {
+    showTyping();
+    const aiResp = await callOpenAI(text);
+    removeTyping();
+    showBubble(aiResp, 'ai');
+    if(currentProfile && currentProfile.approved){
+      const aiRef = push(ref(db, `chats/${currentUser.uid}`)); await set(aiRef, { from: 'ludosgpt', text: aiResp, time: Date.now(), role: 'ai' });
+    }
+  } catch(err){
+    removeTyping();
+    showBubble('Errore: ' + err.message, 'ai');
+  }
+}
+
+/* ========== ADMIN FUNCTIONS ========== */
+function bindAdminLists(){
+  onValue(ref(db, 'users'), (snap)=>{
+    const data = snap.val() || {};
+    pendingList.innerHTML = ''; usersList.innerHTML = ''; allChats.innerHTML = '';
+    Object.entries(data).forEach(([uid,u])=>{
+      const div = document.createElement('div'); div.style.padding='8px'; div.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+      if(!u.approved){
+        div.innerHTML = `<b>${u.name || u.email}</b> — ${u.email} <br><button onclick="approve('${uid}')">Approva</button> <button onclick="reject('${uid}')">Rifiuta</button>`;
+        pendingList.appendChild(div);
+      }
+      const d2 = document.createElement('div'); d2.style.padding='8px'; d2.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+      d2.innerHTML = `<b>${u.name || u.email}</b> — ${u.email} — ruolo: ${u.role || 'user'} <button onclick="makeAdmin('${uid}')">Rendi admin</button> <button onclick="delUser('${uid}')">Elimina</button>`;
+      usersList.appendChild(d2);
+    });
+  });
+  onValue(ref(db, 'chats'), (snap)=>{
+    const data = snap.val() || {}; allChats.innerHTML = '';
+    Object.entries(data).forEach(([uid, msgs])=>{
+      const cwrap = document.createElement('div'); cwrap.style.marginBottom='10px'; cwrap.style.padding='8px'; cwrap.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+      const header = document.createElement('div'); header.innerHTML = `<b>${uid}</b> — <button onclick="deleteChat('${uid}')">Elimina chat</button>`; cwrap.appendChild(header);
+      Object.values(msgs).slice(-6).forEach(m=>{ const p = document.createElement('div'); p.style.fontSize='13px'; p.style.color='var(--muted)'; p.innerText = `${m.role === 'user' ? 'U: ' : 'A: '}${m.text}`; cwrap.appendChild(p); });
+      allChats.appendChild(cwrap);
+    });
+  });
+}
+window.approve = async (uid) => { await update(ref(db, 'users/' + uid), { approved: true }); alert('Utente approvato'); };
+window.reject = async (uid) => { await remove(ref(db, 'users/' + uid)); alert('Utente rimosso'); };
+window.makeAdmin = async (uid) => { await update(ref(db, 'users/' + uid), { role: 'admin', approved: true }); alert('Utente reso admin'); };
+window.delUser = async (uid) => { await remove(ref(db, 'users/' + uid)); alert('Utente eliminato'); };
+window.deleteChat = async (uid) => { await remove(ref(db, 'chats/' + uid)); alert('Chat eliminata'); };
+
+/* ========== LOAD USER CHATS ========== */
+async function loadUserChats(uid){
+  historyEl.innerHTML = '';
+  onValue(ref(db, `chats/${uid}`), (snap)=>{
+    historyEl.innerHTML = '';
+    if(!snap.exists()) return;
+    const data = snap.val();
+    Object.values(data).forEach(m=>{ showBubble(m.text, m.role === 'user' ? 'user' : 'ai', m.role === 'user' ? (currentProfile.name || '') : 'LudosGPT'); });
+  });
+}
+
+/* ========== INIT ========== */
+(async function init(){
+  await ensureAdminExists();
+  openaiKey = INTEGRATED_OPENAI_KEY || localStorage.getItem('ludos_openai_key') || '';
+  apiKeyInput.value = localStorage.getItem('ludos_openai_key') || '';
+})();
+</script>
+</body>
+</html>
