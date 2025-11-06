@@ -71,7 +71,10 @@
       <span id="statusText">Nessun gioco in corso</span>
     </div>
     <p id="gameName">–</p>
-    <a id="gameLink" href="#" target="_blank">Nessun link disponibile</a><br><br>
+
+    <!-- link che apre in nuova scheda -->
+    <a id="gameLink" href="#" target="_blank" rel="noopener noreferrer">Nessun link disponibile</a><br><br>
+
     <button id="adminBtn">Login Admin</button>
 
     <div id="adminPanel" style="display:none;">
@@ -140,11 +143,19 @@
       adminPanel.style.display = "none";
     };
 
+    // Ascolta aggiornamenti in tempo reale
     onValue(gameRef, (snapshot) => {
       const data = snapshot.val() || {};
       gameName.textContent = data.name || "-";
-      gameLink.href = data.link || "#";
-      gameLink.textContent = data.link && data.link !== "#" ? "Vai al gioco" : "Nessun link disponibile";
+
+      // 🔗 Correzione: apre il link esterno in nuova finestra/scheda
+      let url = data.link || "#";
+      if (url && !url.startsWith("http")) {
+        url = "https://" + url;
+      }
+      gameLink.href = url;
+      gameLink.textContent = (data.link && data.link !== "#") ? "Vai al gioco 🎯" : "Nessun link disponibile";
+
       dot.className = "dot " + (data.status || "red");
       statusText.textContent =
         data.status === "green" ? "Classe sta giocando" :
@@ -152,6 +163,7 @@
         "Nessun gioco in corso";
     });
 
+    // 🌙 Tema giorno/notte
     const themeBtn = document.getElementById("themeToggle");
     themeBtn.onclick = () => {
       document.body.classList.toggle("dark");
