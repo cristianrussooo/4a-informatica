@@ -40,9 +40,14 @@
   #adminPanel{margin-top:12px;padding:10px;border-radius:8px;border:1px dashed #ddd;display:none}
   .userOption{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;border:1px solid #eef; margin-bottom:6px}
   #toastContainer{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-  .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px;opacity:1;transition:0.4s}
+  .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px}
   .toast strong{display:block}
-  #blockedOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
+  #blockedOverlay, #siteOffOverlay{
+    display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.9);color:#fff;z-index:99999;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    padding:20px;flex-direction:column;font-size:1.5rem;
+  }
   @media(max-width:900px){main{flex-direction:column;padding:12px}#left{width:100%}}
 </style>
 </head>
@@ -130,6 +135,10 @@
           <h4>Gestisci stanze</h4>
           <div id="adminRooms"></div>
         </div>
+
+        <div style="margin-top:8px">
+          <button id="turnOffSiteBtn" class="small" style="background:#ef4444">Spegni sito</button>
+        </div>
       </div>
 
       <div style="margin-top:12px">
@@ -146,6 +155,11 @@
 <div id="blockedOverlay">
   <h1>Sei stato bloccato</h1>
   <p>L'amministratore ti ha bloccato e non puoi più usare il sito.</p>
+</div>
+
+<div id="siteOffOverlay">
+  <h1>Sito spento</h1>
+  <p>L'amministratore ha spento il sito, torna più tardi.</p>
 </div>
 
 <script type="module">
@@ -165,7 +179,6 @@ const firebaseConfig = {
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-/* ELEMENTS */
 const realNameIn=document.getElementById("realName");
 const usernameIn=document.getElementById("username");
 const passwordIn=document.getElementById("password");
@@ -177,6 +190,8 @@ const loggedAs=document.getElementById("loggedAs");
 const roomsList=document.getElementById("roomsList");
 const createRoomBtn=document.getElementById("createRoomBtn");
 const newRoomName=document.getElementById("newRoomName");
+const useCodeBtn=document.getElementById("useCodeBtn");
+const codeInput=document.getElementById("codeInput");
 
 const roomHeader=document.getElementById("roomHeader");
 const messagesEl=document.getElementById("messages");
@@ -193,6 +208,7 @@ const regenCodeBtn=document.getElementById("regenCodeBtn");
 const adminRooms=document.getElementById("adminRooms");
 const adminUsers=document.getElementById("adminUsers");
 const notificationsList=document.getElementById("notificationsList");
+const turnOffSiteBtn=document.getElementById("turnOffSiteBtn");
 
 const editRealName=document.getElementById("editRealName");
 const editPassword=document.getElementById("editPassword");
@@ -201,11 +217,12 @@ const saveProfileBtn=document.getElementById("saveProfileBtn");
 const themeBtn=document.getElementById("themeBtn");
 const toastContainer=document.getElementById("toastContainer");
 const blockedOverlay=document.getElementById("blockedOverlay");
+const siteOffOverlay=document.getElementById("siteOffOverlay");
 
 let currentUser=JSON.parse(localStorage.getItem("currentUser"))||null;
 let currentRoom=null;
 
-/* TOAST */
+/* UTIL */
 function showToast(title,text,timeout=6000){
   const t=document.createElement("div");t.className="toast";
   t.innerHTML=`<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
@@ -213,7 +230,6 @@ function showToast(title,text,timeout=6000){
   setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(-8px)'; setTimeout(()=>t.remove(),400)},timeout);
 }
 
-/* LOGGED USER */
 function setLoggedUser(u){
   currentUser=u;
   if(u){
@@ -230,9 +246,23 @@ function setLoggedUser(u){
   checkBlocked();
 }
 
-/* CHECK BLOCKED */
+/* CHECK BLOCKED / SITE OFF */
 async function checkBlocked(){
-  if(!currentUser) return;
+  // Se il sito è spento
+  const siteSnap = await get(ref(db,"site/off"));
+  if(siteSnap.exists() && siteSnap.val()){
+    siteOffOverlay.style.display="flex";
+    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=true);
+    return;
+  } else{
+    siteOffOverlay.style.display="none";
+  }
+
+  if(!currentUser) {
+    blockedOverlay.style.display = "none"; 
+    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=false);
+    return;
+  }
   const snap=await get(ref(db,"users/"+currentUser.username));
   if(snap.exists() && snap.val().blocked){
     blockedOverlay.style.display="flex";
@@ -277,11 +307,6 @@ btnRegister.onclick=registerUser;
 btnLogin.onclick=loginUser;
 btnLogout.onclick=()=>{ setLoggedUser(null); };
 
-/* SEND MSG ON ENTER */
-msgInput.addEventListener("keydown", e=>{
-  if(e.key==="Enter"){ sendBtn.click(); e.preventDefault(); }
-});
-
 /* ROOMS */
 async function loadRooms(){
   roomsList.innerHTML="";
@@ -301,167 +326,152 @@ async function loadRooms(){
   if(currentUser && currentUser.role==="admin"){
     keys.forEach(k=>{
       const d=document.createElement("div");d.className="userOption";
-      d.innerHTML=`<span>${k}</span><div><button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
+      d.innerHTML=`<span>${k}</span><div><button data-del style="background:#ef4444">Elimina</button></div>`;
       adminRooms.appendChild(d);
-      d.querySelector("button").onclick=async ()=>{ if(confirm("Eliminare stanza "+k+"?")){ await remove(ref(db,"chats/"+k)); loadRooms(); } };
+      d.querySelector("button").onclick=()=>remove(ref(db,"chats/"+k)).then(()=>loadRooms());
     });
   }
 }
 
-function selectRoom(name){
-  currentRoom=name;
-  roomHeader.textContent=`Stanza: ${name}`;
+function selectRoom(room){
+  currentRoom=room;
+  roomHeader.textContent="Stanza: "+room;
+  loadMessages(room);
+  loadRooms();
+}
+
+createRoomBtn.onclick=async()=>{
+  if(!currentUser) return;
+  const name=newRoomName.value.trim();
+  if(!name) return alert("Inserisci nome stanza");
+  const snap=await get(ref(db,"chats/"+name));
+  if(snap.exists()) return alert("Stanza già esistente");
+  await set(ref(db,"chats/"+name),{createdBy:currentUser.username,ts:Date.now()});
+  showToast("Stanza creata",name);
+  loadRooms();
+}
+
+msgInput.addEventListener("keyup",e=>{ if(e.key==="Enter") sendMsg(); });
+sendBtn.onclick=sendMsg;
+
+async function loadMessages(room){
   messagesEl.innerHTML="";
-  const messagesRef=ref(db,`chats/${name}/messages`);
-  onChildAdded(messagesRef,(snap)=>{
-    const m=snap.val();
-    const div=document.createElement("div");
-    div.className="msg"+(currentUser && m.user===currentUser.username?" me":"")+(m.user==="cristianrusso"?" admin":"");
-    const time=new Date(m.time).toLocaleTimeString();
-    div.innerHTML=`<div class="meta"><strong>${m.user}</strong> • ${time}</div><div>${m.text}</div>`;
-    messagesEl.appendChild(div);
-    messagesEl.scrollTop=messagesEl.scrollHeight;
+  const snap=await get(ref(db,"chats/"+room+"/messages"));
+  if(!snap.exists()) return;
+  Object.values(snap.val()).forEach(m=>addMessage(m.username,m.text,m.role));
+}
+
+async function sendMsg(){
+  if(!currentUser || !currentRoom) return;
+  const text=msgInput.value.trim(); if(!text) return;
+  const msg={username:currentUser.username,text,role:currentUser.role,ts:Date.now()};
+  await push(ref(db,"chats/"+currentRoom+"/messages"),msg);
+  addMessage(currentUser.username,text,currentUser.role);
+  msgInput.value="";
+}
+
+function addMessage(u,text,role){
+  const m=document.createElement("div");m.className="msg"+(currentUser && u===currentUser.username?" me":"")+(role==="admin"?" admin":"");
+  m.innerHTML=`<div class="meta">${u}</div><div>${text}</div>`;
+  messagesEl.appendChild(m);
+  messagesEl.scrollTop=messagesEl.scrollHeight;
+}
+
+/* ADMIN PANEL */
+genCodeBtn.onclick=async()=>{
+  const code="CODE"+Math.floor(Math.random()*100000);
+  await set(ref(db,"codes/current"),{code,ts:Date.now()});
+  lastCodeSpan.textContent=code;
+  showToast("Codice generato",code);
+}
+
+regenCodeBtn.onclick=genCodeBtn.onclick;
+
+function populateUsersSelect(){
+  if(!currentUser || currentUser.role!=="admin") return;
+  notifyUserSelect.innerHTML="";
+  get(ref(db,"users")).then(snap=>{
+    if(!snap.exists()) return;
+    Object.keys(snap.val()).forEach(u=>{
+      const opt=document.createElement("option"); opt.value=u; opt.textContent=u;
+      notifyUserSelect.appendChild(opt);
+    });
   });
 }
 
-/* CREATE ROOM */
-createRoomBtn.onclick = async () => {
-  if (!currentUser) { alert("Effettua login"); return; }
-  const name = newRoomName.value.trim();
-  if (!name) { alert("Inserisci nome stanza"); return; }
+sendNotifyBtn.onclick=async()=>{
+  const to=notifyUserSelect.value;
+  const txt=notifyText.value.trim();
+  if(!to || !txt) return;
+  await push(ref(db,"notifications/"+to),{text:txt,ts:Date.now()});
+  showToast("Notifica inviata",txt);
+  notifyText.value="";
+}
 
-  const roomRef = ref(db, "chats/" + name);
-  const snap = await get(roomRef);
-  if (snap.exists()) { alert("Stanza già esistente"); return; }
-
-  try {
-    await set(roomRef, { messages: {} });
-    showToast("Stanza creata", `La stanza "${name}" è stata creata con successo`);
-    newRoomName.value = "";
-    loadRooms();
-  } catch (err) {
-    console.error(err);
-    alert("Errore nella creazione della stanza");
-  }
-};
-
-/* SEND MESSAGE */
-sendBtn.onclick=async ()=>{
-  if(!currentUser||!currentRoom){ alert("Seleziona stanza e accedi"); return; }
-  const text=msgInput.value.trim();
-  if(!text) return;
-  const messagesRef=ref(db,`chats/${currentRoom}/messages`);
-  await push(messagesRef,{user:currentUser.username,text,time:Date.now()});
-  msgInput.value="";
-};
-
-/* PROFILE UPDATE */
-saveProfileBtn.onclick=async ()=>{
-  if(!currentUser) return;
-  const newName=editRealName.value.trim();
-  const newPass=editPassword.value;
-  const updates={};
-  if(newName) updates.realName=newName;
-  if(newPass) updates.password=newPass;
-  if(Object.keys(updates).length===0) return;
-  await update(ref(db,"users/"+currentUser.username),updates);
-  currentUser.realName=updates.realName||currentUser.realName;
-  setLoggedUser(currentUser);
-  showToast("Profilo aggiornato","Modifiche salvate");
-  editRealName.value=""; editPassword.value="";
-};
-
-/* ADMIN USERS */
 async function loadAdminUsers(){
   if(!currentUser || currentUser.role!=="admin") return;
   adminUsers.innerHTML="";
   const snap=await get(ref(db,"users"));
   if(!snap.exists()) return;
-  const data=snap.val();
-  Object.keys(data).forEach(u=>{
-    const user=data[u];
-    const div=document.createElement("div");
-    div.className="userOption";
-    div.innerHTML=`<span>${u} (${user.role})</span>
+  Object.entries(snap.val()).forEach(([u,data])=>{
+    const d=document.createElement("div");d.className="userOption";
+    d.innerHTML=`<span>${u} (${data.role})</span>
       <div>
-        <button data-role class="small">Cambia ruolo</button>
-        <button data-block class="small" style="background:#facc15">Blocca/Sblocca</button>
-        <button data-edit class="small" style="background:#22c55e">Modifica</button>
-        <button data-del class="small" style="background:#ef4444">Elimina</button>
+        <button data-toggle>${data.role==="admin"?"Rimuovi admin":"Rendi admin"}</button>
+        <button data-block>${data.blocked?"Sblocca":"Blocca"}</button>
+        <button data-del style="background:#ef4444">Elimina</button>
       </div>`;
-    adminUsers.appendChild(div);
-
-    div.querySelector("[data-role]").onclick=async ()=>{
-      const newRole=user.role==="admin"?"user":"admin";
-      await update(ref(db,"users/"+u),{role:newRole});
-      if(u===currentUser.username) currentUser.role=newRole; setLoggedUser(currentUser);
-      loadAdminUsers(); showToast("Ruolo aggiornato",`${u} ora è ${newRole}`);
-    };
-    div.querySelector("[data-block]").onclick=async ()=>{
-      await update(ref(db,"users/"+u),{blocked:!user.blocked});
-      loadAdminUsers(); showToast("Blocco aggiornato",`${u} è ${!user.blocked?"sbloccato":"bloccato"}`);
-    };
-    div.querySelector("[data-edit]").onclick=async ()=>{
-      const newName=prompt("Nuovo nome reale",user.realName);
-      const newPass=prompt("Nuova password","");
-      const upd={};
-      if(newName) upd.realName=newName;
-      if(newPass) upd.password=newPass;
-      if(Object.keys(upd).length>0){ await update(ref(db,"users/"+u),upd); showToast("Utente aggiornato",u); loadAdminUsers(); }
-    };
-    div.querySelector("[data-del]").onclick=async ()=>{
-      if(confirm("Eliminare utente "+u+"?")){ await remove(ref(db,"users/"+u)); loadAdminUsers(); showToast("Utente eliminato",u); }
-    };
+    adminUsers.appendChild(d);
+    d.querySelector("[data-toggle]").onclick=async()=>{ await update(ref(db,"users/"+u),{role:data.role==="admin"?"user":"admin"}); loadAdminUsers(); loadRooms(); populateUsersSelect(); checkBlocked(); };
+    d.querySelector("[data-block]").onclick=async()=>{ await update(ref(db,"users/"+u),{blocked:!data.blocked}); loadAdminUsers(); checkBlocked(); };
+    d.querySelector("[data-del]").onclick=async()=>{ if(confirm("Eliminare utente?")){ await remove(ref(db,"users/"+u)); loadAdminUsers(); populateUsersSelect(); } };
   });
 }
 
-/* POPULATE SELECT NOTIFY */
-async function populateUsersSelect(){
-  notifyUserSelect.innerHTML="";
-  const snap=await get(ref(db,"users"));
-  if(!snap.exists()) return;
-  const data=snap.val();
-  Object.keys(data).forEach(u=>{
-    const opt=document.createElement("option"); opt.value=u; opt.textContent=u;
-    notifyUserSelect.appendChild(opt);
-  });
-}
-
-/* NOTIFICATIONS */
-sendNotifyBtn.onclick=async ()=>{
-  const target=notifyUserSelect.value;
-  const text=notifyText.value.trim();
-  if(!target||!text) return;
-  const notifRef=ref(db,"notifications/"+target);
-  await push(notifRef,{text,time:Date.now()});
-  notifyText.value="";
-  showToast("Notifica inviata",`a ${target}`);
-};
-
-async function loadNotifications(){
+/* PROFILE */
+saveProfileBtn.onclick=async()=>{
   if(!currentUser) return;
-  const notifRef=ref(db,"notifications/"+currentUser.username);
-  notificationsList.innerHTML="";
-  onChildAdded(notifRef,(snap)=>{
+  const updates={};
+  if(editRealName.value.trim()) updates.realName=editRealName.value.trim();
+  if(editPassword.value) updates.password=editPassword.value;
+  await update(ref(db,"users/"+currentUser.username),updates);
+  setLoggedUser({...currentUser,...updates});
+  showToast("Profilo aggiornato","Modifiche salvate");
+  editRealName.value=""; editPassword.value="";
+}
+
+/* SITE OFF */
+turnOffSiteBtn.onclick=async()=>{
+  const val=confirm("Vuoi spegnere il sito? (tutti gli utenti saranno bloccati temporaneamente)");
+  if(val){
+    await set(ref(db,"site/off"),true);
+    checkBlocked();
+  }
+}
+
+onValue(ref(db,"site/off"),checkBlocked);
+
+/* NOTIFICHE */
+function loadNotifications(){
+  if(!currentUser) return;
+  const nRef=ref(db,"notifications/"+currentUser.username);
+  onChildAdded(nRef,snap=>{
     const n=snap.val();
-    const div=document.createElement("div");
-    div.textContent=`${new Date(n.time).toLocaleTimeString()}: ${n.text}`;
-    notificationsList.appendChild(div);
+    const el=document.createElement("div");el.textContent=n.text;el.style.borderBottom="1px solid #ccc";el.style.padding="2px 4px";
+    notificationsList.appendChild(el);
   });
 }
 
 /* THEME */
 themeBtn.onclick=()=>{ 
-  document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"":"dark"; 
-};
+  const t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  document.documentElement.setAttribute("data-theme",t);
+}
 
 /* INIT */
 setLoggedUser(currentUser);
-loadRooms();
-populateUsersSelect();
-loadAdminUsers();
-loadNotifications();
-
+loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
 </script>
+
 </body>
 </html>
