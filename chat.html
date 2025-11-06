@@ -42,12 +42,7 @@
   #toastContainer{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
   .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px}
   .toast strong{display:block}
-  #blockedOverlay, #siteOffOverlay{
-    display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,0.9);color:#fff;z-index:99999;
-    display:flex;align-items:center;justify-content:center;text-align:center;
-    padding:20px;flex-direction:column;font-size:1.5rem;
-  }
+  #blockedOverlay,#siteOffOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
   @media(max-width:900px){main{flex-direction:column;padding:12px}#left{width:100%}}
 </style>
 </head>
@@ -139,6 +134,7 @@
         <div style="margin-top:8px">
           <button id="turnOffSiteBtn" class="small" style="background:#ef4444">Spegni sito</button>
         </div>
+
       </div>
 
       <div style="margin-top:12px">
@@ -159,7 +155,7 @@
 
 <div id="siteOffOverlay">
   <h1>Sito spento</h1>
-  <p>L'amministratore ha spento il sito, torna più tardi.</p>
+  <p>L'amministratore ha spento il sito. Riprova più tardi.</p>
 </div>
 
 <script type="module">
@@ -248,29 +244,25 @@ function setLoggedUser(u){
 
 /* CHECK BLOCKED / SITE OFF */
 async function checkBlocked(){
-  // Se il sito è spento
-  const siteSnap = await get(ref(db,"site/off"));
-  if(siteSnap.exists() && siteSnap.val()){
+  if(!currentUser) return;
+  const [snap,siteSnap]=await Promise.all([
+    get(ref(db,"users/"+currentUser.username)),
+    get(ref(db,"site/off"))
+  ]);
+  const blocked = snap.exists() && snap.val().blocked;
+  const siteOff = siteSnap.exists() && siteSnap.val();
+  if(blocked){
+    blockedOverlay.style.display="flex";
+  } else{
+    blockedOverlay.style.display="none";
+  }
+  if(siteOff){
     siteOffOverlay.style.display="flex";
-    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=true);
-    return;
   } else{
     siteOffOverlay.style.display="none";
   }
-
-  if(!currentUser) {
-    blockedOverlay.style.display = "none"; 
-    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=false);
-    return;
-  }
-  const snap=await get(ref(db,"users/"+currentUser.username));
-  if(snap.exists() && snap.val().blocked){
-    blockedOverlay.style.display="flex";
-    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=true);
-  } else{
-    blockedOverlay.style.display="none";
-    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=false);
-  }
+  const disabled = blocked || siteOff || !currentUser;
+  document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=disabled);
 }
 
 /* AUTH */
@@ -321,157 +313,156 @@ async function loadRooms(){
     roomsList.appendChild(el);
     el.querySelector("button").onclick=()=>selectRoom(k);
   });
-  /* admin rooms */
   adminRooms.innerHTML="";
   if(currentUser && currentUser.role==="admin"){
     keys.forEach(k=>{
       const d=document.createElement("div");d.className="userOption";
-      d.innerHTML=`<span>${k}</span><div><button data-del style="background:#ef4444">Elimina</button></div>`;
+      d.innerHTML=`<span>${k}</span><div><button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
       adminRooms.appendChild(d);
-      d.querySelector("button").onclick=()=>remove(ref(db,"chats/"+k)).then(()=>loadRooms());
+      d.querySelector("button").onclick=async ()=>{ if(confirm("Eliminare stanza "+k+"?")){ await remove(ref(db,"chats/"+k)); loadRooms(); } };
     });
   }
 }
 
-function selectRoom(room){
-  currentRoom=room;
-  roomHeader.textContent="Stanza: "+room;
-  loadMessages(room);
+function selectRoom(name){
+  currentRoom=name;
+  roomHeader.textContent=`Stanza: ${name}`;
+  messagesEl.innerHTML="";
+  const messagesRef=ref(db,`chats/${name}/messages`);
+  onChildAdded(messagesRef,(snap)=>{
+    const m=snap.val();
+    const div=document.createElement("div");div.className="msg"+(m.user===currentUser.username?" me":"");
+    if(m.admin) div.className+=" admin";
+    div.innerHTML=`<div class="meta">${m.user}</div>${m.text}`;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop=messagesEl.scrollHeight;
+  });
   loadRooms();
 }
 
 createRoomBtn.onclick=async()=>{
-  if(!currentUser) return;
   const name=newRoomName.value.trim();
-  if(!name) return alert("Inserisci nome stanza");
-  const snap=await get(ref(db,"chats/"+name));
-  if(snap.exists()) return alert("Stanza già esistente");
-  await set(ref(db,"chats/"+name),{createdBy:currentUser.username,ts:Date.now()});
-  showToast("Stanza creata",name);
+  if(!name) return;
+  await set(ref(db,"chats/"+name),{createdBy:currentUser.username,messages:{}});
+  newRoomName.value="";
   loadRooms();
-}
+  showToast("Stanza creata",`Stanza ${name} creata con successo`);
+};
 
-msgInput.addEventListener("keyup",e=>{ if(e.key==="Enter") sendMsg(); });
-sendBtn.onclick=sendMsg;
-
-async function loadMessages(room){
-  messagesEl.innerHTML="";
-  const snap=await get(ref(db,"chats/"+room+"/messages"));
-  if(!snap.exists()) return;
-  Object.values(snap.val()).forEach(m=>addMessage(m.username,m.text,m.role));
-}
-
-async function sendMsg(){
-  if(!currentUser || !currentRoom) return;
-  const text=msgInput.value.trim(); if(!text) return;
-  const msg={username:currentUser.username,text,role:currentUser.role,ts:Date.now()};
-  await push(ref(db,"chats/"+currentRoom+"/messages"),msg);
-  addMessage(currentUser.username,text,currentUser.role);
+sendBtn.onclick=async()=>{
+  if(!currentRoom) return alert("Seleziona stanza");
+  const txt=msgInput.value.trim();
+  if(!txt) return;
+  const m={user:currentUser.username,text:txt};
+  await push(ref(db,`chats/${currentRoom}/messages`),m);
   msgInput.value="";
-}
+};
 
-function addMessage(u,text,role){
-  const m=document.createElement("div");m.className="msg"+(currentUser && u===currentUser.username?" me":"")+(role==="admin"?" admin":"");
-  m.innerHTML=`<div class="meta">${u}</div><div>${text}</div>`;
-  messagesEl.appendChild(m);
-  messagesEl.scrollTop=messagesEl.scrollHeight;
-}
+/* INVIO ENTER */
+msgInput.addEventListener("keyup",e=>{ if(e.key==="Enter") sendBtn.click(); });
 
 /* ADMIN PANEL */
-genCodeBtn.onclick=async()=>{
-  const code="CODE"+Math.floor(Math.random()*100000);
-  await set(ref(db,"codes/current"),{code,ts:Date.now()});
-  lastCodeSpan.textContent=code;
-  showToast("Codice generato",code);
-}
-
-regenCodeBtn.onclick=genCodeBtn.onclick;
-
 function populateUsersSelect(){
-  if(!currentUser || currentUser.role!=="admin") return;
   notifyUserSelect.innerHTML="";
   get(ref(db,"users")).then(snap=>{
     if(!snap.exists()) return;
     Object.keys(snap.val()).forEach(u=>{
-      const opt=document.createElement("option"); opt.value=u; opt.textContent=u;
-      notifyUserSelect.appendChild(opt);
+      const o=document.createElement("option");
+      o.value=u;o.textContent=u;
+      notifyUserSelect.appendChild(o);
     });
   });
 }
 
 sendNotifyBtn.onclick=async()=>{
-  const to=notifyUserSelect.value;
-  const txt=notifyText.value.trim();
-  if(!to || !txt) return;
-  await push(ref(db,"notifications/"+to),{text:txt,ts:Date.now()});
-  showToast("Notifica inviata",txt);
+  const user=notifyUserSelect.value;
+  const text=notifyText.value.trim();
+  if(!text) return;
+  await push(ref(db,`users/${user}/notifications`),{text,date:Date.now()});
   notifyText.value="";
-}
+  showToast("Notifica inviata",`A ${user}`);
+};
 
-async function loadAdminUsers(){
-  if(!currentUser || currentUser.role!=="admin") return;
+function loadAdminUsers(){
   adminUsers.innerHTML="";
-  const snap=await get(ref(db,"users"));
-  if(!snap.exists()) return;
-  Object.entries(snap.val()).forEach(([u,data])=>{
-    const d=document.createElement("div");d.className="userOption";
-    d.innerHTML=`<span>${u} (${data.role})</span>
+  get(ref(db,"users")).then(snap=>{
+    if(!snap.exists()) return;
+    Object.entries(snap.val()).forEach(([u,d])=>{
+      const div=document.createElement("div");div.className="userOption";
+      div.innerHTML=`<span>${u} (${d.role})</span>
       <div>
-        <button data-toggle>${data.role==="admin"?"Rimuovi admin":"Rendi admin"}</button>
-        <button data-block>${data.blocked?"Sblocca":"Blocca"}</button>
-        <button data-del style="background:#ef4444">Elimina</button>
+      <button data-block style="background:#facc15;padding:6px;border-radius:6px">${d.blocked?"Sblocca":"Blocca"}</button>
+      <button data-role style="background:#0078ff;padding:6px;border-radius:6px">${d.role==="admin"?"Rendi user":"Rendi admin"}</button>
+      <button data-pass style="background:#6b7280;padding:6px;border-radius:6px">Modifica password</button>
+      <button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button>
       </div>`;
-    adminUsers.appendChild(d);
-    d.querySelector("[data-toggle]").onclick=async()=>{ await update(ref(db,"users/"+u),{role:data.role==="admin"?"user":"admin"}); loadAdminUsers(); loadRooms(); populateUsersSelect(); checkBlocked(); };
-    d.querySelector("[data-block]").onclick=async()=>{ await update(ref(db,"users/"+u),{blocked:!data.blocked}); loadAdminUsers(); checkBlocked(); };
-    d.querySelector("[data-del]").onclick=async()=>{ if(confirm("Eliminare utente?")){ await remove(ref(db,"users/"+u)); loadAdminUsers(); populateUsersSelect(); } };
+      adminUsers.appendChild(div);
+      div.querySelector("[data-block]").onclick=async ()=>{
+        await update(ref(db,"users/"+u),{blocked:!d.blocked});
+        loadAdminUsers(); checkBlocked();
+      };
+      div.querySelector("[data-role]").onclick=async()=>{
+        await update(ref(db,"users/"+u),{role:d.role==="admin"?"user":"admin"});
+        loadAdminUsers(); setLoggedUser(currentUser); populateUsersSelect();
+      };
+      div.querySelector("[data-pass]").onclick=async()=>{
+        const newPass=prompt("Nuova password per "+u);
+        if(newPass) await update(ref(db,"users/"+u),{password:newPass});
+      };
+      div.querySelector("[data-del]").onclick=async()=>{
+        if(confirm("Eliminare "+u+"?")){ await remove(ref(db,"users/"+u)); loadAdminUsers(); populateUsersSelect(); }
+      };
+    });
   });
 }
 
+/* SITE ON/OFF */
+async function updateSiteBtn(){
+  const siteSnap=await get(ref(db,"site/off"));
+  const isOff=siteSnap.exists() && siteSnap.val();
+  turnOffSiteBtn.textContent=isOff?"Riaccendi sito":"Spegni sito";
+}
+turnOffSiteBtn.onclick=async()=>{
+  const siteSnap=await get(ref(db,"site/off"));
+  const isOff=siteSnap.exists() && siteSnap.val();
+  await set(ref(db,"site/off"),!isOff);
+  updateSiteBtn(); checkBlocked();
+};
+onValue(ref(db,"site/off"),()=>{ updateSiteBtn(); checkBlocked(); });
+updateSiteBtn();
+
 /* PROFILE */
 saveProfileBtn.onclick=async()=>{
-  if(!currentUser) return;
-  const updates={};
-  if(editRealName.value.trim()) updates.realName=editRealName.value.trim();
-  if(editPassword.value) updates.password=editPassword.value;
-  await update(ref(db,"users/"+currentUser.username),updates);
-  setLoggedUser({...currentUser,...updates});
-  showToast("Profilo aggiornato","Modifiche salvate");
+  const name=editRealName.value.trim();
+  const pass=editPassword.value.trim();
+  if(name) await update(ref(db,"users/"+currentUser.username),{realName:name});
+  if(pass) await update(ref(db,"users/"+currentUser.username),{password:pass});
   editRealName.value=""; editPassword.value="";
-}
-
-/* SITE OFF */
-turnOffSiteBtn.onclick=async()=>{
-  const val=confirm("Vuoi spegnere il sito? (tutti gli utenti saranno bloccati temporaneamente)");
-  if(val){
-    await set(ref(db,"site/off"),true);
-    checkBlocked();
-  }
-}
-
-onValue(ref(db,"site/off"),checkBlocked);
+  showToast("Profilo aggiornato","Modifiche salvate");
+  const snap=await get(ref(db,"users/"+currentUser.username));
+  setLoggedUser({username:currentUser.username,realName:snap.val().realName,role:snap.val().role});
+};
 
 /* NOTIFICHE */
 function loadNotifications(){
-  if(!currentUser) return;
-  const nRef=ref(db,"notifications/"+currentUser.username);
-  onChildAdded(nRef,snap=>{
-    const n=snap.val();
-    const el=document.createElement("div");el.textContent=n.text;el.style.borderBottom="1px solid #ccc";el.style.padding="2px 4px";
-    notificationsList.appendChild(el);
+  notificationsList.innerHTML="";
+  get(ref(db,"users/"+currentUser.username+"/notifications")).then(snap=>{
+    if(!snap.exists()) return;
+    Object.values(snap.val()).forEach(n=>{
+      const d=document.createElement("div");
+      d.textContent=n.text;
+      notificationsList.appendChild(d);
+    });
   });
 }
 
 /* THEME */
-themeBtn.onclick=()=>{ 
+themeBtn.onclick=()=>{
   const t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
   document.documentElement.setAttribute("data-theme",t);
-}
+};
 
-/* INIT */
-setLoggedUser(currentUser);
-loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+if(currentUser) setLoggedUser(currentUser); loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
 </script>
-
 </body>
 </html>
