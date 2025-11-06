@@ -73,10 +73,6 @@
         <input id="newRoomName" placeholder="Nome nuova stanza" />
         <button id="createRoomBtn" class="small">Crea</button>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input id="codeInput" placeholder="Inserisci codice per creare stanza" />
-        <button id="useCodeBtn" class="small">Usa codice</button>
-      </div>
       <div id="roomsList"></div>
     </div>
 
@@ -117,7 +113,6 @@
           <input id="notifyText" placeholder="Testo notifica" style="margin-top:6px" />
           <div style="display:flex;gap:8px;margin-top:6px">
             <button id="sendNotifyBtn" class="small">Invia notifica</button>
-            <button id="regenCodeBtn" class="small" style="background:#6b7280">Rigenera codice</button>
           </div>
         </div>
 
@@ -150,102 +145,304 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getDatabase, ref, set, push, onChildAdded, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import { getDatabase, ref, set, push, onChildAdded, get, update, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "...",
-  authDomain: "...",
-  databaseURL: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
+  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
+  authDomain: "classe4a-game.firebaseapp.com",
+  databaseURL: "https://classe4a-game-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "classe4a-game",
+  storageBucket: "classe4a-game.storages.app",
+  messagingSenderId: "558916476831",
+  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* ELEMENTS */
-const realNameIn=document.getElementById("realName");
-const usernameIn=document.getElementById("username");
-const passwordIn=document.getElementById("password");
-const btnRegister=document.getElementById("btnRegister");
-const btnLogin=document.getElementById("btnLogin");
-const btnLogout=document.getElementById("btnLogout");
-const loggedAs=document.getElementById("loggedAs");
+const realNameIn = document.getElementById("realName");
+const usernameIn = document.getElementById("username");
+const passwordIn = document.getElementById("password");
+const btnRegister = document.getElementById("btnRegister");
+const btnLogin = document.getElementById("btnLogin");
+const btnLogout = document.getElementById("btnLogout");
+const loggedAs = document.getElementById("loggedAs");
 
-const roomsList=document.getElementById("roomsList");
-const createRoomBtn=document.getElementById("createRoomBtn");
-const newRoomName=document.getElementById("newRoomName");
+const roomsList = document.getElementById("roomsList");
+const createRoomBtn = document.getElementById("createRoomBtn");
+const newRoomName = document.getElementById("newRoomName");
 
-const roomHeader=document.getElementById("roomHeader");
-const messagesEl=document.getElementById("messages");
-const msgInput=document.getElementById("msgInput");
-const sendBtn=document.getElementById("sendBtn");
+const roomHeader = document.getElementById("roomHeader");
+const messagesEl = document.getElementById("messages");
+const msgInput = document.getElementById("msgInput");
+const sendBtn = document.getElementById("sendBtn");
 
-const adminPanel=document.getElementById("adminPanel");
-const genCodeBtn=document.getElementById("genCodeBtn");
-const lastCodeSpan=document.getElementById("lastCode");
-const notifyUserSelect=document.getElementById("notifyUserSelect");
-const notifyText=document.getElementById("notifyText");
-const sendNotifyBtn=document.getElementById("sendNotifyBtn");
-const regenCodeBtn=document.getElementById("regenCodeBtn");
-const adminRooms=document.getElementById("adminRooms");
-const adminUsers=document.getElementById("adminUsers");
-const notificationsList=document.getElementById("notificationsList");
-const editRealName=document.getElementById("editRealName");
-const editPassword=document.getElementById("editPassword");
-const saveProfileBtn=document.getElementById("saveProfileBtn");
-const themeBtn=document.getElementById("themeBtn");
-const toastContainer=document.getElementById("toastContainer");
-const blockedOverlay=document.getElementById("blockedOverlay");
+const adminPanel = document.getElementById("adminPanel");
+const notifyUserSelect = document.getElementById("notifyUserSelect");
+const notifyText = document.getElementById("notifyText");
+const sendNotifyBtn = document.getElementById("sendNotifyBtn");
+const adminRooms = document.getElementById("adminRooms");
+const adminUsers = document.getElementById("adminUsers");
+const notificationsList = document.getElementById("notificationsList");
+
+const editRealName = document.getElementById("editRealName");
+const editPassword = document.getElementById("editPassword");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+
+const themeBtn = document.getElementById("themeBtn");
+const toastContainer = document.getElementById("toastContainer");
+const blockedOverlay = document.getElementById("blockedOverlay");
 
 let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
 let currentRoom = null;
 
 /* TOAST */
-function showToast(title,text,timeout=6000){
-  const t=document.createElement("div");t.className="toast";
-  t.innerHTML=`<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
+function showToast(title, text, timeout = 6000) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
   toastContainer.appendChild(t);
-  setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(-8px)'; setTimeout(()=>t.remove(),400)},timeout);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-8px)'; setTimeout(() => t.remove(), 400); }, timeout);
 }
 
 /* LOGGED USER */
-function setLoggedUser(u){
+function setLoggedUser(u) {
   currentUser = u;
-  if(u){
-    localStorage.setItem("currentUser",JSON.stringify(u));
-    loggedAs.textContent=`${u.realName} (${u.username}) [${u.role}]`;
-    btnLogout.style.display="inline-block";
-    adminPanel.style.display=(u.role==="admin")?"block":"none";
+  if (u) {
+    localStorage.setItem("currentUser", JSON.stringify(u));
+    loggedAs.textContent = `${u.realName} (${u.username}) [${u.role}]`;
+    btnLogout.style.display = "inline-block";
+    adminPanel.style.display = (u.role === "admin") ? "block" : "none";
   } else {
     localStorage.removeItem("currentUser");
-    loggedAs.textContent="Non connesso";
-    btnLogout.style.display="none";
-    adminPanel.style.display="none";
+    loggedAs.textContent = "Non connesso";
+    btnLogout.style.display = "none";
+    adminPanel.style.display = "none";
   }
   checkBlocked();
 }
 
 /* CHECK BLOCKED */
-async function checkBlocked(){
-  if(!currentUser) return;
-  const snap = await get(ref(db,"users/"+currentUser.username));
-  const blocked = snap.exists() && snap.val().blocked;
-  blockedOverlay.style.display = blocked ? "flex" : "none";
-  document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled = blocked);
+async function checkBlocked() {
+  if (!currentUser) return; // non bloccare se non loggato
+  const snap = await get(ref(db, "users/" + currentUser.username));
+  const user = snap.exists() ? snap.val() : null;
+  if (user && user.blocked) {
+    blockedOverlay.style.display = "flex";
+    document.querySelectorAll("input,button,select,textarea").forEach(el => el.disabled = true);
+  } else {
+    blockedOverlay.style.display = "none";
+    document.querySelectorAll("input,button,select,textarea").forEach(el => el.disabled = false);
+  }
 }
 
-themeBtn.onclick=()=>{ 
-  document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"":"dark"; 
+/* AUTH */
+async function registerUser() {
+  const realName = realNameIn.value.trim();
+  const username = usernameIn.value.trim();
+  const password = passwordIn.value;
+  if (!realName || !username || !password) { alert("Compila tutti i campi"); return; }
+  const userRef = ref(db, "users/" + username);
+  const snap = await get(userRef);
+  if (snap.exists()) { alert("Username già usato"); return; }
+  const usersSnap = await get(ref(db, "users"));
+  const role = (usersSnap.exists() ? "user" : "admin");
+  await set(userRef, { realName, password, role });
+  setLoggedUser({ username, realName, role });
+  showToast("Benvenuto", `Registrato come ${role}`);
+  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+}
+
+async function loginUser() {
+  const username = usernameIn.value.trim();
+  const password = passwordIn.value;
+  if (!username || !password) { alert("Inserisci credenziali"); return; }
+  const userRef = ref(db, "users/" + username);
+  const snap = await get(userRef);
+  if (!snap.exists() || snap.val().password !== password) { alert("Credenziali errate"); return; }
+  const u = snap.val();
+  setLoggedUser({ username, realName: u.realName, role: u.role });
+  showToast("Accesso", `Ciao ${u.realName}`);
+  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+}
+
+btnRegister.onclick = registerUser;
+btnLogin.onclick = loginUser;
+btnLogout.onclick = () => { setLoggedUser(null); };
+
+/* SEND MSG ON ENTER */
+msgInput.addEventListener("keydown", e => { if (e.key === "Enter") { sendBtn.click(); e.preventDefault(); } });
+
+/* ROOMS */
+async function loadRooms() {
+  roomsList.innerHTML = "";
+  const snap = await get(ref(db, "chats"));
+  const data = snap.exists() ? snap.val() : {};
+  const keys = Object.keys(data);
+  if (keys.length === 0) { roomsList.innerHTML = '<div style="color:gray">Nessuna stanza</div>'; return; }
+  keys.forEach(k => {
+    const el = document.createElement("div");
+    el.className = "roomItem" + (k === currentRoom ? " active" : "");
+    el.innerHTML = `<span>${k}</span><button class="small" data-room="${k}">Entra</button>`;
+    roomsList.appendChild(el);
+    el.querySelector("button").onclick = () => selectRoom(k);
+  });
+
+  // Admin rooms
+  adminRooms.innerHTML = "";
+  if (currentUser && currentUser.role === "admin") {
+    keys.forEach(k => {
+      const d = document.createElement("div"); d.className = "userOption";
+      d.innerHTML = `<span>${k}</span><div><button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
+      adminRooms.appendChild(d);
+      d.querySelector("button").onclick = async () => { if (confirm("Eliminare stanza " + k + "?")) { await remove(ref(db, "chats/" + k)); loadRooms(); showToast("Stanza eliminata", k); } };
+    });
+  }
+}
+
+function selectRoom(name) {
+  currentRoom = name;
+  roomHeader.textContent = `Stanza: ${name}`;
+  messagesEl.innerHTML = "";
+  const messagesRef = ref(db, `chats/${name}/messages`);
+  onChildAdded(messagesRef, (snap) => {
+    const m = snap.val();
+    const div = document.createElement("div");
+    div.className = "msg" + (currentUser && m.user === currentUser.username ? " me" : "") + (m.user === "cristianrusso" ? " admin" : "");
+    const time = new Date(m.time).toLocaleTimeString();
+    div.innerHTML = `<div class="meta"><strong>${m.user}</strong> • ${time}</div><div>${m.text}</div>`;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+}
+
+/* CREATE ROOM */
+createRoomBtn.onclick = async () => {
+  const name = newRoomName.value.trim();
+  if (!name) return;
+  const snap = await get(ref(db, "chats/" + name));
+  if (snap.exists()) { alert("Stanza già esistente"); return; }
+  await set(ref(db, "chats/" + name), { messages: {} });
+  newRoomName.value = "";
+  loadRooms();
+  showToast("Stanza creata", name);
 };
 
+/* SEND MESSAGE */
+sendBtn.onclick = async () => {
+  if (!currentUser || !currentRoom) return;
+  const text = msgInput.value.trim();
+  if (!text) return;
+  const mRef = ref(db, `chats/${currentRoom}/messages`);
+  await push(mRef, { user: currentUser.username, text, time: Date.now() });
+  msgInput.value = "";
+};
+
+/* PROFILE EDIT */
+saveProfileBtn.onclick = async () => {
+  if (!currentUser) return;
+  const updates = {};
+  if (editRealName.value.trim()) updates.realName = editRealName.value.trim();
+  if (editPassword.value) updates.password = editPassword.value;
+  if (Object.keys(updates).length === 0) return;
+  await update(ref(db, "users/" + currentUser.username), updates);
+  const snap = await get(ref(db, "users/" + currentUser.username));
+  setLoggedUser({ username: currentUser.username, realName: snap.val().realName, role: snap.val().role });
+  showToast("Profilo aggiornato", "Le modifiche sono state salvate");
+};
+
+/* ADMIN USERS */
+async function populateUsersSelect() {
+  const snap = await get(ref(db, "users"));
+  notifyUserSelect.innerHTML = "";
+  if (!snap.exists()) return;
+  Object.keys(snap.val()).forEach(u => {
+    const opt = document.createElement("option"); opt.value = u; opt.textContent = u;
+    notifyUserSelect.appendChild(opt);
+  });
+}
+
+async function loadAdminUsers() {
+  const snap = await get(ref(db, "users"));
+  adminUsers.innerHTML = "";
+  if (!snap.exists()) return;
+  Object.entries(snap.val()).forEach(([uname, u]) => {
+    const d = document.createElement("div"); d.className = "userOption";
+    d.innerHTML = `<span>${uname} [${u.role}]</span>
+      <div>
+        <button data-toggleBlock class="small">${u.blocked ? "Sblocca" : "Blocca"}</button>
+        <button data-toggleRole class="small">Ruolo</button>
+        <button data-del class="small" style="background:#ef4444">Elimina</button>
+      </div>`;
+    adminUsers.appendChild(d);
+
+    d.querySelector("[data-toggleBlock]").onclick = async () => {
+      await update(ref(db, "users/" + uname), { blocked: !u.blocked });
+      showToast(u.blocked ? "Utente sbloccato" : "Utente bloccato", uname);
+      loadAdminUsers();
+      checkBlocked();
+    };
+    d.querySelector("[data-toggleRole]").onclick = async () => {
+      const newRole = u.role === "admin" ? "user" : "admin";
+      await update(ref(db, "users/" + uname), { role: newRole });
+      showToast("Ruolo modificato", uname + " -> " + newRole);
+      loadAdminUsers();
+      if (currentUser.username === uname) setLoggedUser({ ...currentUser, role: newRole });
+    };
+    d.querySelector("[data-del]").onclick = async () => {
+      if (confirm("Eliminare utente " + uname + "?")) {
+        await remove(ref(db, "users/" + uname));
+        showToast("Utente eliminato", uname);
+        loadAdminUsers(); populateUsersSelect();
+        if (currentUser.username === uname) setLoggedUser(null);
+      }
+    };
+  });
+}
+
+/* NOTIFICATIONS */
+sendNotifyBtn.onclick = async () => {
+  const target = notifyUserSelect.value;
+  const text = notifyText.value.trim();
+  if (!target || !text) return;
+  const nRef = ref(db, "notifications/" + target);
+  await push(nRef, { text, time: Date.now() });
+  notifyText.value = "";
+  showToast("Notifica inviata", target);
+};
+
+async function loadNotifications() {
+  notificationsList.innerHTML = "";
+  if (!currentUser) return;
+  const nRef = ref(db, "notifications/" + currentUser.username);
+  onChildAdded(nRef, (snap) => {
+    const n = snap.val();
+    const d = document.createElement("div");
+    const time = new Date(n.time).toLocaleTimeString();
+    d.textContent = `${time}: ${n.text}`;
+    notificationsList.appendChild(d);
+  });
+}
+
+/* THEME TOGGLE */
+let dark = localStorage.getItem("dark") === "true";
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  themeBtn.textContent = dark ? "☀️" : "🌙";
+}
+themeBtn.onclick = () => { dark = !dark; localStorage.setItem("dark", dark); applyTheme(); }
+applyTheme();
+
 /* INIT */
-setLoggedUser(currentUser);
-loadRooms();
-populateUsersSelect();
-loadAdminUsers();
-loadNotifications();
+if (currentUser) {
+  checkBlocked();
+  loadRooms();
+  populateUsersSelect();
+  loadAdminUsers();
+  loadNotifications();
+  setLoggedUser(currentUser);
+}
 </script>
 </body>
 </html>
