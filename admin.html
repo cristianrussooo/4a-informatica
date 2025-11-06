@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>4A Informatica - Admin Ticket</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f6f8fa;color:#111}
+  header{background:#0078ff;color:#fff;padding:16px;text-align:center;font-size:1.2rem}
+  main{padding:16px;max-width:800px;margin:auto}
+  .ticket{background:#fff;padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-bottom:12px}
+  .ticket h4{margin:0 0 6px 0}
+  .ticket p{margin:4px 0}
+  button{padding:6px 10px;margin:4px;border:none;border-radius:6px;cursor:pointer}
+  .accept{background:#22c55e;color:#fff}
+  .reject{background:#ef4444;color:#fff}
+  .delete{background:#ef4444;color:#fff}
+  input,textarea{width:100%;padding:6px;margin:4px 0;border-radius:6px;border:1px solid #ccc}
+  .comment{margin-left:12px;padding:6px;border-left:2px solid #0078ff;font-size:13px;color:#333}
+  #loginBox{max-width:400px;margin:60px auto;padding:16px;background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+</style>
+</head>
+<body>
+<header>Admin Ticket - 4A Informatica</header>
+
+<main>
+  <div id="loginBox">
+    <h3>Login Admin</h3>
+    <input type="text" id="adminUsername" placeholder="Username" />
+    <input type="password" id="adminPassword" placeholder="Password" />
+    <button id="adminLoginBtn">Accedi</button>
+    <p id="loginError" style="color:red;font-size:13px"></p>
+  </div>
+
+  <div id="ticketsContainer" style="display:none">
+    <p>Caricamento ticket...</p>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getDatabase, ref, onValue, update, push, get } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
+  authDomain: "classe4a-game.firebaseapp.com",
+  databaseURL: "https://classe4a-game-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "classe4a-game",
+  storageBucket: "classe4a-game.appspot.com",
+  messagingSenderId: "558916476831",
+  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const ticketsContainer = document.getElementById("ticketsContainer");
+const loginBox = document.getElementById("loginBox");
+const adminUsernameInput = document.getElementById("adminUsername");
+const adminPasswordInput = document.getElementById("adminPassword");
+const adminLoginBtn = document.getElementById("adminLoginBtn");
+const loginError = document.getElementById("loginError");
+
+// LOGIN ADMIN
+adminLoginBtn.onclick = async () => {
+  const username = adminUsernameInput.value.trim();
+  const password = adminPasswordInput.value;
+  if(!username || !password){ loginError.textContent="Compila tutti i campi"; return; }
+
+  try {
+    const snap = await get(ref(db, "users/" + username));
+    if(!snap.exists() || snap.val().password !== password || snap.val().role !== "admin"){
+      loginError.textContent = "Credenziali admin non valide";
+      return;
+    }
+    // Login corretto
+    loginBox.style.display="none";
+    ticketsContainer.style.display="block";
+    loadTickets();
+  } catch(e) {
+    console.error(e);
+    loginError.textContent="Errore durante login";
+  }
+};
+
+// RENDER TICKET
+function renderTickets(data){
+  ticketsContainer.innerHTML="";
+  if(!data){ ticketsContainer.innerHTML="<p>Nessun ticket presente</p>"; return; }
+  Object.entries(data).forEach(([id,t])=>{
+    const div=document.createElement("div");
+    div.className="ticket";
+
+    let commentsHtml="";
+    if(t.comments){
+      Object.values(t.comments).forEach(c=>{
+        commentsHtml+=`<div class="comment">${c}</div>`;
+      });
+    }
+
+    div.innerHTML=`
+      <h4>Ticket #${id}</h4>
+      <p><strong>Nome:</strong> ${t.name} | <strong>Email:</strong> ${t.email}</p>
+      <p><strong>Messaggio:</strong> ${t.message}</p>
+      <p><strong>Stato:</strong> ${t.status}</p>
+      <div>${commentsHtml}</div>
+      <textarea placeholder="Aggiungi commento..." class="commentInput"></textarea>
+      <button class="addCommentBtn">Aggiungi commento</button>
+      <button class="accept">Accetta</button>
+      <button class="reject">Rifiuta</button>
+      <button class="delete">Cancella</button>
+    `;
+    ticketsContainer.appendChild(div);
+
+    const commentInput = div.querySelector(".commentInput");
+
+    div.querySelector(".addCommentBtn").onclick=async ()=>{
+      if(commentInput.value.trim()===""){ alert("Scrivi un commento"); return; }
+      const newCommentRef = ref(db,`tickets/${id}/comments`);
+      await push(newCommentRef,commentInput.value.trim());
+      commentInput.value="";
+    };
+
+    div.querySelector(".accept").onclick=async ()=>{ await update(ref(db,`tickets/${id}`),{status:"accettato",editable:false}); };
+    div.querySelector(".reject").onclick=async ()=>{ await update(ref(db,`tickets/${id}`),{status:"rifiutato",editable:false}); };
+    div.querySelector(".delete").onclick=async ()=>{ 
+      if(confirm("Eliminare ticket #"+id+"?")){
+        await update(ref(db,`tickets/${id}`),{status:"cancellato",editable:false});
+      }
+    };
+  });
+}
+
+// CARICAMENTO LIVE
+function loadTickets(){
+  const ticketsRef = ref(db,"tickets");
+  onValue(ticketsRef,(snap)=>{
+    renderTickets(snap.exists()?snap.val():null);
+  });
+}
+</script>
+</body>
+</html>
