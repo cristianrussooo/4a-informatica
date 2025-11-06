@@ -18,7 +18,6 @@
   header h1{margin:0;font-size:1rem}
   #themeBtn{background:none;border:0;cursor:pointer;font-size:18px}
   main{flex:1;display:flex;gap:16px;padding:16px}
-  /* left column = login / list rooms */
   .col{background:var(--panel);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(10,10,10,.04)}
   #left{width:320px;min-height:60vh;display:flex;flex-direction:column;gap:12px}
   label{display:block;font-size:13px;margin-bottom:6px}
@@ -29,24 +28,21 @@
   #roomsList{display:flex;flex-direction:column;gap:8px}
   .roomItem{padding:8px;border-radius:8px;border:1px solid #e6e6e6;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
   .roomItem.active{border-color:var(--accent);background:rgba(0,120,255,0.06)}
-  /* right = chat + admin panel  */
   #right{flex:1;display:flex;flex-direction:column;min-height:60vh}
   #chatArea{flex:1;display:flex;flex-direction:column;background:var(--panel);padding:12px;border-radius:12px;overflow:hidden}
   #messages{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
   .msg{max-width:70%;padding:8px 10px;border-radius:10px;background:#eef2ff}
   .msg.me{align-self:flex-end;background:var(--accent);color:#fff}
+  .msg.admin{background:#ffdd57;color:#000}
   .meta{font-size:12px;color:gray;margin-bottom:6px}
   #sendRow{display:flex;gap:8px;padding-top:8px}
   #sendRow input{flex:1}
-  /* admin panel */
   #adminPanel{margin-top:12px;padding:10px;border-radius:8px;border:1px dashed #ddd;display:none}
   #adminPanel h3{margin:0 0 8px 0}
   .userOption{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;border:1px solid #eef; margin-bottom:6px}
-  /* toast */
   #toastContainer{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
   .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px}
   .toast strong{display:block}
-  /* responsive */
   @media(max-width:900px){
     main{flex-direction:column;padding:12px}
     #left{width:100%}
@@ -63,7 +59,6 @@
 
 <main>
   <section id="left" class="col">
-    <!-- Login / Register -->
     <div id="authBox">
       <h3>Accedi / Registrati</h3>
       <label>Nome vero</label>
@@ -79,7 +74,6 @@
       <small style="color:gray;display:block;margin-top:8px"></small>
     </div>
 
-    <!-- rooms -->
     <div>
       <h3 style="margin-bottom:8px">Stanze</h3>
       <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -99,6 +93,14 @@
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="btnLogout" class="small" style="background:#ef4444">Esci</button>
       </div>
+
+      <!-- Modifica dati utente -->
+      <div style="margin-top:10px">
+        <h4>Modifica dati</h4>
+        <label>Nome reale <input id="editRealName" /></label>
+        <label>Password <input id="editPassword" type="password" /></label>
+        <button id="saveProfileBtn" class="small" style="background:#22c55e">Salva</button>
+      </div>
     </div>
   </section>
 
@@ -106,13 +108,11 @@
     <div id="chatArea">
       <div id="roomHeader" class="meta">Seleziona o crea una stanza</div>
       <div id="messages"></div>
-
       <div id="sendRow" style="margin-top:8px">
         <input id="msgInput" placeholder="Scrivi un messaggio..." />
         <button id="sendBtn">Invia</button>
       </div>
 
-      <!-- admin panel -->
       <div id="adminPanel">
         <h3>🔧 Pannello Admin</h3>
         <div style="margin-bottom:8px">
@@ -134,24 +134,27 @@
           <h4>Gestisci stanze</h4>
           <div id="adminRooms"></div>
         </div>
+
+        <div style="margin-top:12px">
+          <h4>Gestisci Utenti</h4>
+          <div id="adminUsers"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <h4>Notifiche Utenti</h4>
+          <div id="notificationsList" style="max-height:200px;overflow:auto;border:1px solid #ddd;padding:6px;border-radius:8px"></div>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
-<!-- toast container -->
 <div id="toastContainer"></div>
 
 <script type="module">
-/* =========================
-   IMPORT E CONFIG FIREBASE
-   ========================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import {
-  getDatabase, ref, set, push, onChildAdded, onValue, get, child, update, remove
-} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import { getDatabase, ref, set, push, onChildAdded, onValue, get, update, remove, child } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-// Sostituisci con il tuo config se vuoi usare un altro progetto
 const firebaseConfig = {
   apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
   authDomain: "classe4a-game.firebaseapp.com",
@@ -165,9 +168,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-/* =========================
-   ELEMENTI UI
-   ========================= */
 const realNameIn = document.getElementById("realName");
 const usernameIn = document.getElementById("username");
 const passwordIn = document.getElementById("password");
@@ -196,20 +196,17 @@ const sendNotifyBtn = document.getElementById("sendNotifyBtn");
 const regenCodeBtn = document.getElementById("regenCodeBtn");
 const adminRooms = document.getElementById("adminRooms");
 
+const editRealName = document.getElementById("editRealName");
+const editPassword = document.getElementById("editPassword");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+
 const themeBtn = document.getElementById("themeBtn");
 const toastContainer = document.getElementById("toastContainer");
 
-/* =========================
-   STATO LOCALE
-   ========================= */
-let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null; // { username, realName, role }
+let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
 let currentRoom = null;
-let messagesListeners = {}; // per room references
 
-/* =========================
-   UTILS UI
-   ========================= */
-function showToast(title, text, timeout=6000){
+function showToast(title,text,timeout=6000){
   const t = document.createElement("div");
   t.className = "toast";
   t.innerHTML = `<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
@@ -228,13 +225,9 @@ function setLoggedUser(u){
     loggedAs.textContent = "Non connesso";
     btnLogout.style.display = "none";
   }
-  // mostra pannello admin se admin
-  adminPanel.style.display = (u && u.role === "admin") ? "block" : "none";
+  adminPanel.style.display = (u && u.role==="admin") ? "block" : "none";
 }
 
-/* =========================
-   AUTH (registrazione/login)
-   ========================= */
 async function registerUser(){
   const realName = realNameIn.value.trim();
   const username = usernameIn.value.trim();
@@ -245,14 +238,13 @@ async function registerUser(){
   const snap = await get(userRef);
   if(snap.exists()){ alert("Username già usato"); return; }
 
-  // Decide role: se non ci sono users, primo utente diventa admin
   const usersSnap = await get(ref(db, "users"));
   const role = (usersSnap.exists() ? "user" : "admin");
 
   await set(userRef, { realName, password, role });
   setLoggedUser({ username, realName, role });
   showToast("Benvenuto", `Registrato come ${role}`);
-  loadRooms(); populateUsersSelect();
+  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
 }
 
 async function loginUser(){
@@ -265,38 +257,31 @@ async function loginUser(){
   const u = snap.val();
   setLoggedUser({ username, realName: u.realName, role: u.role });
   showToast("Accesso", `Ciao ${u.realName}`);
-  loadRooms(); populateUsersSelect();
+  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
 }
 
-/* logout */
 btnLogout.onclick = ()=>{ setLoggedUser(null); };
-
-/* events */
 btnRegister.onclick = registerUser;
 btnLogin.onclick = loginUser;
 
-/* =========================
-   ROOMS (stanze)
-   ========================= */
 async function loadRooms(){
   roomsList.innerHTML = "";
   const snap = await get(ref(db, "chats"));
   const data = snap.exists() ? snap.val() : {};
   const keys = Object.keys(data);
-  if(keys.length === 0){ roomsList.innerHTML = '<div style="color:gray">Nessuna stanza</div>'; return; }
+  if(keys.length===0){ roomsList.innerHTML='<div style="color:gray">Nessuna stanza</div>'; return; }
   for(const k of keys){
     const el = document.createElement("div");
-    el.className = "roomItem" + (k===currentRoom ? " active" : "");
+    el.className = "roomItem" + (k===currentRoom?" active":"");
     el.innerHTML = `<span>${k}</span><button class="small" data-room="${k}">Entra</button>`;
     roomsList.appendChild(el);
     el.querySelector("button").onclick = ()=>{ selectRoom(k); };
   }
-  // admin rooms management
   adminRooms.innerHTML = "";
-  if(currentUser && currentUser.role === "admin"){
+  if(currentUser && currentUser.role==="admin"){
     for(const k of keys){
       const d = document.createElement("div");
-      d.className = "userOption";
+      d.className="userOption";
       d.innerHTML = `<span>${k}</span><div><button data-del="${k}" style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
       adminRooms.appendChild(d);
       d.querySelector("button").onclick = async ()=>{ if(confirm("Eliminare stanza "+k+"?")){ await remove(ref(db,"chats/"+k)); loadRooms(); } };
@@ -304,18 +289,17 @@ async function loadRooms(){
   }
 }
 
-/* selectRoom: remove old listener and attach new one */
 function selectRoom(name){
   currentRoom = name;
   roomHeader.textContent = `Stanza: ${name}`;
   messagesEl.innerHTML = "";
-  // cleanup old listeners not necessary: onChildAdded attaches per reference; for simplicity we'll not detach; we'll rebuild UI
-  // Attach child_added to /chats/{name}/messages
   const messagesRef = ref(db, `chats/${name}/messages`);
-  onChildAdded(messagesRef, (snap) => {
+  onChildAdded(messagesRef, (snap)=>{
     const m = snap.val();
     const div = document.createElement("div");
-    div.className = "msg" + (currentUser && m.user === currentUser.username ? " me":"");
+    div.className = "msg";
+    if(currentUser && m.user===currentUser.username) div.classList.add("me");
+    if(m.user==="cristianrusso") div.classList.add("admin");
     const time = new Date(m.time).toLocaleTimeString();
     div.innerHTML = `<div class="meta"><strong>${m.user}</strong> • ${time}</div><div>${m.text}</div>`;
     messagesEl.appendChild(div);
@@ -323,174 +307,143 @@ function selectRoom(name){
   });
 }
 
-/* create room (admin or any user with valid code) */
 createRoomBtn.onclick = async ()=>{
   const name = newRoomName.value.trim();
   if(!name) return alert("Inserisci nome stanza");
   if(!currentUser) return alert("Effettua il login per creare stanza");
-  // only admin can directly create
-  if(currentUser.role !== "admin"){
-    alert("Solo admin può creare stanza direttamente. Se hai un codice, usa 'Usa codice'.");
-    return;
-  }
+  if(currentUser.role!=="admin"){ alert("Solo admin può creare stanza direttamente."); return; }
   await set(ref(db, "chats/"+name), { system: "Stanza creata da admin" });
   newRoomName.value="";
   await loadRooms();
   showToast("Creata", `Stanza ${name} creata`);
 };
 
-/* use code to create room (any user with valid code) */
 useCodeBtn.onclick = async ()=>{
   const code = codeInput.value.trim().toUpperCase();
   const name = newRoomName.value.trim();
   if(!code || !name) return alert("Inserisci codice e nome stanza");
   const codeSnap = await get(ref(db, "admin/codes/"+code));
   if(!codeSnap.exists()) return alert("Codice non valido");
-  const codeData = codeSnap.val();
-  // check expiry
-  const now = Date.now();
-  if(codeData.created + (codeData.ttl || 1800_000) < now){
-    return alert("Codice scaduto");
-  }
-  // create room
-  await set(ref(db,"chats/"+name), { system: `Stanza creata con codice ${code}` });
-  // optionally delete code to make single-use:
-  await remove(ref(db,"admin/codes/"+code));
-  newRoomName.value=""; codeInput.value="";
-  await loadRooms();
-  showToast("Creata", `Stanza ${name} creata con codice`);
+  await set(ref(db, "chats/"+name), { system: "Stanza creata da codice" });
+  codeInput.value = ""; newRoomName.value="";
+  loadRooms();
+  showToast("Creata", `Stanza ${name} creata`);
 };
 
-/* =========================
-   CHAT MESSAGING
-   ========================= */
 sendBtn.onclick = async ()=>{
+  if(!currentRoom) return alert("Seleziona una stanza");
   if(!currentUser) return alert("Effettua login");
-  if(!currentRoom) return alert("Scegli stanza");
   const text = msgInput.value.trim();
   if(!text) return;
-  const mref = ref(db, `chats/${currentRoom}/messages`);
-  await push(mref, { user: currentUser.username, text, time: Date.now() });
+  const msgRef = push(ref(db, `chats/${currentRoom}/messages`));
+  await set(msgRef, { user: currentUser.username, text, time: Date.now() });
   msgInput.value="";
 };
 
 /* =========================
-   ADMIN: codes + notifications
+   ADMIN: gestione utenti
    ========================= */
-async function ensureAdminCodeExists(){
-  const snap = await get(ref(db,"admin/codes"));
-  if(!snap.exists()){
-    // don't auto-generate a global code here; admin will generate when logged in
-    return;
-  }
-}
-
-genCodeBtn.onclick = async ()=>{
-  if(!currentUser || currentUser.role !== "admin") return alert("Solo admin");
-  const code = Math.random().toString(36).substring(2,8).toUpperCase();
-  const now = Date.now();
-  const ttl = 30*60*1000; // 30 minutes
-  await set(ref(db, `admin/codes/${code}`), { created: now, ttl });
-  lastCodeSpan.textContent = `${code} (valido 30 min)`;
-  showToast("Codice generato", `Codice: ${code}`);
-  return code;
-};
-
-regenCodeBtn.onclick = async ()=>{
-  if(!currentUser || currentUser.role !== "admin") return;
-  // delete all codes and generate new one
-  const snap = await get(ref(db,"admin/codes"));
-  if(snap.exists()){ await remove(ref(db,"admin/codes")); }
-  const c = await genCodeBtn.onclick();
-  // optionally send to someone
-};
-
-async function populateUsersSelect(){
-  // populate notifyUserSelect with "RealName (username)" options
-  notifyUserSelect.innerHTML = "";
+async function loadAdminUsers(){
+  if(!currentUser || currentUser.role!=="admin") return;
   const snap = await get(ref(db,"users"));
-  if(!snap.exists()) return;
-  const data = snap.val();
+  const data = snap.exists() ? snap.val() : {};
+  const container = document.getElementById("adminUsers");
+  container.innerHTML = "";
   for(const u in data){
-    const opt = document.createElement("option");
-    opt.value = u;
-    opt.textContent = `${data[u].realName} (${u})`;
-    notifyUserSelect.appendChild(opt);
+    const user = data[u];
+    if(u === "cristianrusso") continue; // admin principale non modificabile
+    const div = document.createElement("div");
+    div.className = "userOption";
+    div.style.background = user.role==="admin" ? "#ffdd57" : "#eef2ff";
+    div.innerHTML = `
+      <span>${user.realName} (${u}) [${user.role}]</span>
+      <div style="display:flex;gap:4px">
+        <select data-user="${u}">
+          <option value="user" ${user.role==="user"?"selected":""}>Utente</option>
+          <option value="admin" ${user.role==="admin"?"selected":""}>Admin</option>
+        </select>
+        <button data-block="${u}" style="background:#ef4444;padding:6px;border-radius:6px">Blocca</button>
+        <button data-delete="${u}" style="background:#facc15;padding:6px;border-radius:6px">Elimina</button>
+      </div>`;
+    container.appendChild(div);
+
+    div.querySelector(`[data-block]`).onclick = async ()=>{
+      await update(ref(db,"users/"+u), { blocked: true });
+      showToast("Utente bloccato", u);
+    };
+    div.querySelector(`[data-delete]`).onclick = async ()=>{
+      if(confirm("Eliminare utente "+u+"?")){
+        await remove(ref(db,"users/"+u));
+        loadAdminUsers();
+      }
+    };
+    div.querySelector("select").onchange = async (e)=>{
+      await update(ref(db,"users/"+u), { role: e.target.value });
+      showToast("Ruolo aggiornato", u);
+      loadAdminUsers();
+    };
   }
 }
 
-sendNotifyBtn.onclick = async ()=>{
-  if(!currentUser || currentUser.role !== "admin") return alert("Solo admin");
-  const targetUser = notifyUserSelect.value;
-  const text = notifyText.value.trim();
-  if(!targetUser || !text) return alert("Seleziona utente e testo");
-  const nref = ref(db, `notifications/${targetUser}`);
-  const n = await push(nref, { from: currentUser.username, text, time: Date.now() });
-  // optional: keep it for record; client will remove after delivery
-  notifyText.value="";
-  showToast("Notifica inviata", `A ${targetUser}`);
+/* =========================
+   UTENTE: modifica profilo
+   ========================= */
+saveProfileBtn.onclick = async ()=>{
+  if(!currentUser) return;
+  const newReal = editRealName.value.trim();
+  const newPass = editPassword.value.trim();
+  if(newReal) await update(ref(db,"users/"+currentUser.username), { realName: newReal });
+  if(newPass) await update(ref(db,"users/"+currentUser.username), { password: newPass });
+  setLoggedUser({ ...currentUser, realName: newReal || currentUser.realName });
+  showToast("Profilo aggiornato", currentUser.username);
+  editPassword.value="";
 };
 
 /* =========================
-   LISTENERS: rooms, notifications, users
+   NOTIFICHE
    ========================= */
-async function startRealtime(){
-  // when chats root changes, reload rooms list (so new rooms appear for everyone)
-  onValue(ref(db,"chats"), (snap)=>{ loadRooms(); });
-
-  // notifications: listen only for current user
-  if(currentUser){
-    const notifRef = ref(db, `notifications/${currentUser.username}`);
-    onChildAdded(notifRef, async (s) => {
-      const n = s.val();
-      if(!n) return;
-      // show toast
-      showToast("Notifica da admin", n.text, 10000);
-      // optionally auto-delete this notification (one-time)
-      await remove(child(notifRef, s.key));
-    });
+async function loadNotifications(){
+  if(!currentUser) return;
+  const notifRef = ref(db, "notifications/"+currentUser.username);
+  const snap = await get(notifRef);
+  const data = snap.exists() ? snap.val() : {};
+  const container = document.getElementById("notificationsList");
+  container.innerHTML="";
+  for(const k in data){
+    const n = data[k];
+    const div = document.createElement("div");
+    div.style.borderBottom="1px solid #ddd";
+    div.style.padding="4px";
+    div.innerHTML = `<strong>${n.from}</strong>: ${n.text} <button data-key="${k}">Segna come letto</button>`;
+    container.appendChild(div);
+    div.querySelector("button").onclick = async ()=>{
+      await remove(ref(db,`notifications/${currentUser.username}/${k}`));
+      loadNotifications();
+    };
   }
-  // users list update for admin selects
-  onValue(ref(db,"users"), ()=>{ populateUsersSelect(); });
 }
 
 /* =========================
-   AUTO START
+   UTILI
    ========================= */
-setLoggedUser(currentUser);
-loadRooms();
-populateUsersSelect();
-startRealtime();
+async function populateUsersSelect(){
+  const snap = await get(ref(db,"users"));
+  const data = snap.exists() ? snap.val() : {};
+  notifyUserSelect.innerHTML = "";
+  for(const u in data){ notifyUserSelect.innerHTML+=`<option value="${u}">${data[u].realName} (${u})</option>`; }
+}
 
-/* Whenever currentUser changes (login/register), re-run realtime listeners */
-window.addEventListener("storage", ()=>{
-  const updated = JSON.parse(localStorage.getItem("currentUser"));
-  if(JSON.stringify(updated) !== JSON.stringify(currentUser)){
-    currentUser = updated;
-    setLoggedUser(currentUser);
-    startRealtime();
-  }
-});
+/* =========================
+   THEME
+   ========================= */
+let darkMode = false;
+themeBtn.onclick = ()=>{ darkMode = !darkMode; document.documentElement.setAttribute("data-theme",darkMode?"dark":"light"); };
 
-/* When login/register happen, re-init realtime listeners */
-btnLogin.addEventListener("click", ()=>{ setTimeout(()=>{ startRealtime(); },500); });
-btnRegister.addEventListener("click", ()=>{ setTimeout(()=>{ startRealtime(); },500); });
-
-/* theme */
-themeBtn.onclick = ()=> {
-  const isDark = document.documentElement.getAttribute("data-theme")==="dark";
-  document.documentElement.setAttribute("data-theme", isDark ? "" : "dark");
-  themeBtn.textContent = isDark ? "🌙" : "☀️";
-};
-
-/* On load: restore theme pref */
-if(localStorage.getItem("theme")==="dark"){ document.documentElement.setAttribute("data-theme","dark"); themeBtn.textContent="☀️"; }
-themeBtn.onclick = ()=> {
-  const t = document.documentElement.getAttribute("data-theme")==="dark" ? "" : "dark";
-  document.documentElement.setAttribute("data-theme", t);
-  localStorage.setItem("theme", t==="dark" ? "dark" : "light");
-  themeBtn.textContent = t==="dark" ? "☀️" : "🌙";
-};
+/* =========================
+   INIZIALIZZAZIONE
+   ========================= */
+if(currentUser) setLoggedUser(currentUser);
+loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
 </script>
 </body>
 </html>
