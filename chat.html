@@ -165,6 +165,7 @@ const firebaseConfig = {
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
+/* ELEMENTI */
 const realNameIn=document.getElementById("realName");
 const usernameIn=document.getElementById("username");
 const passwordIn=document.getElementById("password");
@@ -257,7 +258,7 @@ async function registerUser(){
   await set(userRef,{realName,password,role});
   setLoggedUser({username,realName,role});
   showToast("Benvenuto",`Registrato come ${role}`);
-  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications(); loadTempCode();
 }
 
 async function loginUser(){
@@ -270,12 +271,17 @@ async function loginUser(){
   const u=snap.val();
   setLoggedUser({username,realName:u.realName,role:u.role});
   showToast("Accesso",`Ciao ${u.realName}`);
-  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications(); loadTempCode();
 }
 
 btnRegister.onclick=registerUser;
 btnLogin.onclick=loginUser;
 btnLogout.onclick=()=>{ setLoggedUser(null); };
+
+/* INVIO MESSAGGI CON ENTER */
+msgInput.addEventListener("keydown",e=>{
+  if(e.key==="Enter") sendBtn.click();
+});
 
 /* ROOMS */
 async function loadRooms(){
@@ -321,68 +327,71 @@ function selectRoom(name){
 
 createRoomBtn.onclick=async ()=>{
   if(!currentUser){ alert("Effettua login"); return; }
-  const name=newRoomName.value.trim();
-  if(!name){ alert("Inserisci nome stanza"); return; }
-  if(currentUser.role!=="admin"){ alert("Solo admin può creare stanza direttamente."); return; }
+  const name=newRoomName.value.trim(); if(!name) return;
   await set(ref(db,"chats/"+name),{messages:{}});
   loadRooms();
-}
+  newRoomName.value="";
+  showToast("Stanza creata",name);
+};
 
+/* MESSAGGI */
 sendBtn.onclick=async ()=>{
-  if(!currentUser||!currentRoom) return;
-  const txt=msgInput.value.trim(); if(!txt) return;
-  const msgRef=ref(db,`chats/${currentRoom}/messages`);
-  await push(msgRef,{user:currentUser.username,text:txt,time:Date.now()});
+  if(!currentRoom||!currentUser) return;
+  const text=msgInput.value.trim(); if(!text) return;
+  const msgRef=push(ref(db,`chats/${currentRoom}/messages`));
+  await set(msgRef,{user:currentUser.username,text,time:Date.now()});
   msgInput.value="";
+};
+
+/* TEMPO CODE */
+async function generateTempCode(){
+  if(!currentUser || currentUser.role!=="admin") return;
+  const code=Math.random().toString(36).substring(2,8).toUpperCase();
+  const expire=Date.now()+30*60*1000;
+  await set(ref(db,"tempCode"),{code,expire});
+  lastCodeSpan.textContent=code;
+  showToast("Codice generato",`Valido 30 minuti: ${code}`);
+}
+genCodeBtn.onclick=generateTempCode;
+regenCodeBtn.onclick=generateTempCode;
+
+async function loadTempCode(){
+  const snap=await get(ref(db,"tempCode"));
+  if(snap.exists()){
+    const c=snap.val();
+    if(c.expire>Date.now()) lastCodeSpan.textContent=c.code;
+    else lastCodeSpan.textContent="";
+  }
 }
 
-/* ADMIN */
-async function populateUsersSelect(){
-  const snap=await get(ref(db,"users"));
-  notifyUserSelect.innerHTML="";
-  if(!snap.exists()) return;
-  const users=Object.keys(snap.val());
-  users.forEach(u=>{
-    const opt=document.createElement("option"); opt.value=u; opt.textContent=u; notifyUserSelect.appendChild(opt);
-  });
-}
-
-async function loadAdminUsers(){
-  adminUsers.innerHTML="";
-  const snap=await get(ref(db,"users"));
-  if(!snap.exists()) return;
-  Object.entries(snap.val()).forEach(([uname,u])=>{
-    const div=document.createElement("div"); div.className="userOption";
-    div.innerHTML=`<span>${uname}</span>
-      <div style="display:flex;gap:6px">
-        <button data-role class="small">Cambia ruolo</button>
-        <button data-block class="small" style="background:#ef4444">Blocca</button>
-        <button data-unblock class="small" style="background:#22c55e">Sblocca</button>
-        <button data-del class="small" style="background:#6b7280">Elimina</button>
-      </div>`;
-    adminUsers.appendChild(div);
-
-    div.querySelector("[data-role]").onclick=async ()=>{
-      const newRole=u.role==="admin"?"user":"admin";
-      await update(ref(db,"users/"+uname),{role:newRole});
-      showToast("Ruolo cambiato",`${uname} è ora ${newRole}`);
-      loadAdminUsers(); populateUsersSelect();
-    };
-    div.querySelector("[data-block]").onclick=async ()=>{
-      await update(ref(db,"users/"+uname),{blocked:true});
-      showToast("Utente bloccato",uname);
-    };
-    div.querySelector("[data-unblock]").onclick=async ()=>{
-      await update(ref(db,"users/"+uname),{blocked:false});
-      showToast("Utente sbloccato",uname);
-    };
-    div.querySelector("[data-del]").onclick=async ()=>{
-      if(confirm("Eliminare utente "+uname+"?")){ await remove(ref(db,"users/"+uname)); showToast("Utente eliminato",uname); loadAdminUsers(); populateUsersSelect(); }
-    };
-  });
-}
+/* USO CODICE */
+useCodeBtn.onclick=async ()=>{
+  const input=codeInput.value.trim().toUpperCase();
+  if(!input){ alert("Inserisci codice"); return; }
+  const snap=await get(ref(db,"tempCode"));
+  if(!snap.exists()){ alert("Codice non valido"); return; }
+  const data=snap.val();
+  if(data.expire<Date.now()){ alert("Codice scaduto"); return; }
+  if(data.code!==input){ alert("Codice non valido"); return; }
+  const roomName=prompt("Nome della nuova stanza:");
+  if(!roomName) return;
+  await set(ref(db,"chats/"+roomName),{messages:{}});
+  loadRooms();
+  showToast("Stanza creata",`Stanza "${roomName}" creata con codice`);
+  codeInput.value="";
+};
 
 /* NOTIFICHE */
+function populateUsersSelect(){
+  notifyUserSelect.innerHTML="";
+  get(ref(db,"users")).then(snap=>{
+    if(!snap.exists()) return;
+    Object.keys(snap.val()).forEach(u=>{
+      const opt=document.createElement("option"); opt.value=u; opt.textContent=u; notifyUserSelect.appendChild(opt);
+    });
+  });
+}
+
 async function sendNotification(){
   const target=notifyUserSelect.value;
   const text=notifyText.value.trim();
@@ -392,42 +401,65 @@ async function sendNotification(){
   notifyText.value="";
   showToast("Notifica inviata",`a ${target}`);
 }
+sendNotifyBtn.onclick=sendNotification;
 
 async function loadNotifications(){
-  if(!currentUser) return;
   notificationsList.innerHTML="";
-  const snap=await get(ref(db,"notifications/"+currentUser.username));
+  if(!currentUser) return;
+  const nRef=ref(db,"notifications/"+currentUser.username);
+  onChildAdded(nRef,snap=>{
+    const n=snap.val();
+    const div=document.createElement("div");
+    div.textContent=`[${new Date(n.time).toLocaleTimeString()}] ${n.from}: ${n.text}`;
+    notificationsList.appendChild(div);
+  });
+}
+
+/* ADMIN USERS */
+async function loadAdminUsers(){
+  adminUsers.innerHTML="";
+  const snap=await get(ref(db,"users"));
   if(!snap.exists()) return;
-  Object.entries(snap.val()).forEach(([k,n])=>{
-    const d=document.createElement("div"); d.style.borderBottom="1px solid #ccc"; d.style.padding="6px";
-    d.innerHTML=`<strong>Da: ${n.from}</strong><br>${n.text} <span style="float:right">${n.read?"✅":"🕓"}</span>`;
-    d.onclick=()=>{ update(ref(db,`notifications/${currentUser.username}/${k}`),{read:true}); loadNotifications(); };
-    notificationsList.appendChild(d);
+  Object.entries(snap.val()).forEach(([u,data])=>{
+    const d=document.createElement("div");d.className="userOption";
+    d.innerHTML=`<span>${u} (${data.role})</span>
+    <div><button data-block style="background:#ef4444;padding:6px;border-radius:6px">Blocca</button>
+    <button data-role style="background:#22c55e;padding:6px;border-radius:6px">Cambia ruolo</button></div>`;
+    adminUsers.appendChild(d);
+    d.querySelector("[data-block]").onclick=async ()=>{ await update(ref(db,"users/"+u),{blocked:!(data.blocked||false)}); loadAdminUsers(); };
+    d.querySelector("[data-role]").onclick=async ()=>{
+      const newRole=(data.role==="user")?"admin":"user";
+      await update(ref(db,"users/"+u),{role:newRole});
+      loadAdminUsers();
+    };
   });
 }
 
 /* PROFILE */
 saveProfileBtn.onclick=async ()=>{
+  const newName=editRealName.value.trim();
+  const newPass=editPassword.value;
   if(!currentUser) return;
-  const rn=editRealName.value.trim(); const pw=editPassword.value;
-  const updates={}; if(rn) updates.realName=rn; if(pw) updates.password=pw;
+  const updates={};
+  if(newName) updates.realName=newName;
+  if(newPass) updates.password=newPass;
+  if(Object.keys(updates).length===0) return;
   await update(ref(db,"users/"+currentUser.username),updates);
+  setLoggedUser({...currentUser,...updates});
   showToast("Profilo aggiornato","");
-  if(rn) currentUser.realName=rn; setLoggedUser(currentUser);
+  editRealName.value=""; editPassword.value="";
 }
 
 /* THEME */
-let dark=false;
-themeBtn.onclick=()=>{ dark=!dark; document.documentElement.setAttribute("data-theme",dark?"dark":"light"); }
+themeBtn.onclick=()=>{
+  const t=document.documentElement.getAttribute("data-theme");
+  if(t==="dark"){ document.documentElement.removeAttribute("data-theme"); themeBtn.textContent="🌙"; }
+  else{ document.documentElement.setAttribute("data-theme","dark"); themeBtn.textContent="☀️"; }
+}
 
 /* INIT */
 if(currentUser) setLoggedUser(currentUser);
-loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
-setInterval(checkBlocked,5000);
-
-/* ADMIN EVENTS */
-sendNotifyBtn.onclick=sendNotification;
-
+loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications(); loadTempCode();
 </script>
 </body>
 </html>
