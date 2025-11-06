@@ -40,9 +40,9 @@
   #adminPanel{margin-top:12px;padding:10px;border-radius:8px;border:1px dashed #ddd;display:none}
   .userOption{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;border:1px solid #eef; margin-bottom:6px}
   #toastContainer{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-  .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px}
+  .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px;opacity:1;transition:0.4s}
   .toast strong{display:block}
-  #blockedOverlay, #siteOffOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
+  #blockedOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
   @media(max-width:900px){main{flex-direction:column;padding:12px}#left{width:100%}}
 </style>
 </head>
@@ -110,8 +110,6 @@
         <div style="margin-bottom:8px">
           <button id="genCodeBtn" class="small">Genera codice temporaneo (30 min)</button>
           <span id="lastCode" style="margin-left:8px;color:gray"></span>
-          <button id="siteOffBtn" class="small" style="background:#ef4444; margin-left:12px;">Spegni sito</button>
-          <button id="siteOnBtn" class="small" style="background:#22c55e; margin-left:4px;">Riaccendi sito</button>
         </div>
         <div style="margin-bottom:8px">
           <h4>Invia notifica a utente</h4>
@@ -119,6 +117,7 @@
           <input id="notifyText" placeholder="Testo notifica" style="margin-top:6px" />
           <div style="display:flex;gap:8px;margin-top:6px">
             <button id="sendNotifyBtn" class="small">Invia notifica</button>
+            <button id="regenCodeBtn" class="small" style="background:#6b7280">Rigenera codice</button>
           </div>
         </div>
 
@@ -130,6 +129,10 @@
         <div>
           <h4>Gestisci stanze</h4>
           <div id="adminRooms"></div>
+        </div>
+
+        <div style="margin-top:10px">
+          <label><input type="checkbox" id="toggleSite"> Spegni sito</label>
         </div>
       </div>
 
@@ -146,12 +149,7 @@
 
 <div id="blockedOverlay">
   <h1>Sei stato bloccato</h1>
-  <p>L'amministratore ti ha bloccato e non puoi più usare il sito.</p>
-</div>
-
-<div id="siteOffOverlay">
-  <h1>Sito spento</h1>
-  <p>L'amministratore ha spento il sito. Riprova più tardi.</p>
+  <p>L'amministratore ti ha bloccato o il sito è spento e non puoi più usare il sito.</p>
 </div>
 
 <script type="module">
@@ -159,19 +157,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebas
 import { getDatabase, ref, set, push, onChildAdded, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
-  authDomain: "classe4a-game.firebaseapp.com",
-  databaseURL: "https://classe4a-game-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "classe4a-game",
-  storageBucket: "classe4a-game.firebasestorage.app",
-  messagingSenderId: "558916476831",
-  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
+  apiKey: "...",
+  authDomain: "...",
+  databaseURL: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "..."
 };
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-const app=initializeApp(firebaseConfig);
-const db=getDatabase(app);
-
-/* ELEMENTI DOM */
+/* ELEMENTS */
 const realNameIn=document.getElementById("realName");
 const usernameIn=document.getElementById("username");
 const passwordIn=document.getElementById("password");
@@ -183,8 +180,6 @@ const loggedAs=document.getElementById("loggedAs");
 const roomsList=document.getElementById("roomsList");
 const createRoomBtn=document.getElementById("createRoomBtn");
 const newRoomName=document.getElementById("newRoomName");
-const useCodeBtn=document.getElementById("useCodeBtn");
-const codeInput=document.getElementById("codeInput");
 
 const roomHeader=document.getElementById("roomHeader");
 const messagesEl=document.getElementById("messages");
@@ -197,26 +192,25 @@ const lastCodeSpan=document.getElementById("lastCode");
 const notifyUserSelect=document.getElementById("notifyUserSelect");
 const notifyText=document.getElementById("notifyText");
 const sendNotifyBtn=document.getElementById("sendNotifyBtn");
+const regenCodeBtn=document.getElementById("regenCodeBtn");
 const adminRooms=document.getElementById("adminRooms");
 const adminUsers=document.getElementById("adminUsers");
-
+const notificationsList=document.getElementById("notificationsList");
 const editRealName=document.getElementById("editRealName");
 const editPassword=document.getElementById("editPassword");
 const saveProfileBtn=document.getElementById("saveProfileBtn");
-
 const themeBtn=document.getElementById("themeBtn");
 const toastContainer=document.getElementById("toastContainer");
 const blockedOverlay=document.getElementById("blockedOverlay");
-const siteOffOverlay=document.getElementById("siteOffOverlay");
-const siteOffBtn=document.getElementById("siteOffBtn");
-const siteOnBtn=document.getElementById("siteOnBtn");
+const toggleSite=document.getElementById("toggleSite");
 
-let currentUser=JSON.parse(localStorage.getItem("currentUser"))||null;
-let currentRoom=null;
+let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+let currentRoom = null;
+let siteOff = false;
 
 /* TOAST */
-function showToast(title,text,timeout=5000){
-  const t=document.createElement("div"); t.className="toast";
+function showToast(title,text,timeout=6000){
+  const t=document.createElement("div");t.className="toast";
   t.innerHTML=`<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
   toastContainer.appendChild(t);
   setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(-8px)'; setTimeout(()=>t.remove(),400)},timeout);
@@ -224,13 +218,13 @@ function showToast(title,text,timeout=5000){
 
 /* LOGGED USER */
 function setLoggedUser(u){
-  currentUser=u;
+  currentUser = u;
   if(u){
     localStorage.setItem("currentUser",JSON.stringify(u));
     loggedAs.textContent=`${u.realName} (${u.username}) [${u.role}]`;
     btnLogout.style.display="inline-block";
     adminPanel.style.display=(u.role==="admin")?"block":"none";
-  } else{
+  } else {
     localStorage.removeItem("currentUser");
     loggedAs.textContent="Non connesso";
     btnLogout.style.display="none";
@@ -239,220 +233,32 @@ function setLoggedUser(u){
   checkBlocked();
 }
 
-/* CHECK BLOCKED & SITE OFF */
+/* CHECK BLOCKED / SITE OFF */
 async function checkBlocked(){
-  if(!currentUser){
-    blockedOverlay.style.display="none";
-    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=false);
-    return;
+  let blocked = false;
+  if(currentUser){
+    const snap = await get(ref(db,"users/"+currentUser.username));
+    blocked = snap.exists() && snap.val().blocked;
   }
-  const snapUser=await get(ref(db,"users/"+currentUser.username));
-  const snapSite=await get(ref(db,"siteOff/status"));
-  const blocked=(snapUser.exists() && snapUser.val().blocked);
-  const siteOff=(snapSite.exists() && snapSite.val()===true);
-  blockedOverlay.style.display=blocked?"flex":"none";
-  siteOffOverlay.style.display=(siteOff && !blocked)?"flex":"none";
-  document.querySelectorAll("input,button,select,textarea").forEach(el=>{
-    if(blocked || siteOff) el.disabled=true;
-    else el.disabled=false;
-  });
+  if(siteOff) blocked = true;
+  blockedOverlay.style.display = blocked ? "flex" : "none";
+  document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled = blocked);
 }
 
-/* AUTH */
-async function registerUser(){
-  const realName=realNameIn.value.trim();
-  const username=usernameIn.value.trim();
-  const password=passwordIn.value;
-  if(!realName||!username||!password){ alert("Compila tutti i campi"); return; }
-  const snap=await get(ref(db,"users/"+username));
-  if(snap.exists()){ alert("Username già usato"); return; }
-  const usersSnap=await get(ref(db,"users"));
-  const role=(usersSnap.exists()?"user":"admin");
-  await set(ref(db,"users/"+username),{realName,password,role,blocked:false});
-  setLoggedUser({username,realName,role});
-  showToast("Benvenuto",`Registrato come ${role}`);
-  loadRooms(); populateUsers(); loadAdminUsers(); loadNotifications();
-}
-
-async function loginUser(){
-  const username=usernameIn.value.trim();
-  const password=passwordIn.value;
-  if(!username||!password){ alert("Inserisci credenziali"); return; }
-  const snap=await get(ref(db,"users/"+username));
-  if(!snap.exists()||snap.val().password!==password){ alert("Credenziali errate"); return; }
-  const u=snap.val();
-  setLoggedUser({username,realName:u.realName,role:u.role});
-  showToast("Accesso",`Ciao ${u.realName}`);
-  loadRooms(); populateUsers(); loadAdminUsers(); loadNotifications();
-}
-
-btnRegister.onclick=registerUser;
-btnLogin.onclick=loginUser;
-btnLogout.onclick=()=>{ setLoggedUser(null); };
-
-/* SEND MESSAGE */
-sendBtn.onclick=sendMessage;
-msgInput.addEventListener("keydown", e=>{ if(e.key==="Enter") sendMessage(); });
-async function sendMessage(){
-  if(!currentUser||!currentRoom) return;
-  const txt=msgInput.value.trim(); if(!txt) return;
-  await push(ref(db,`chats/${currentRoom}/messages`),{user:currentUser.username,text:txt,time:Date.now()});
-  msgInput.value="";
-}
-
-/* ROOMS */
-async function loadRooms(){
-  roomsList.innerHTML="";
-  const snap=await get(ref(db,"chats"));
-  const data=snap.exists()?snap.val():{};
-  const keys=Object.keys(data);
-  if(keys.length===0){ roomsList.innerHTML='<div style="color:gray">Nessuna stanza</div>'; return; }
-  keys.forEach(k=>{
-    const el=document.createElement("div");
-    el.className="roomItem"+(k===currentRoom?" active":"");
-    el.innerHTML=`<span>${k}</span><button class="small" data-room="${k}">Entra</button>`;
-    roomsList.appendChild(el);
-    el.querySelector("button").onclick=()=>selectRoom(k);
-  });
-  /* admin rooms */
-  adminRooms.innerHTML="";
-  if(currentUser && currentUser.role==="admin"){
-    keys.forEach(k=>{
-      const d=document.createElement("div");d.className="userOption";
-      d.innerHTML=`<span>${k}</span><div><button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
-      adminRooms.appendChild(d);
-      d.querySelector("[data-del]").onclick=async ()=>{ await remove(ref(db,"chats/"+k)); loadRooms(); showToast("Stanza eliminata",k); }
-    });
-  }
-}
-
-createRoomBtn.onclick=async ()=>{
-  if(!currentUser||!newRoomName.value.trim()) return;
-  const name=newRoomName.value.trim();
-  await set(ref(db,"chats/"+name),{messages:{},createdBy:currentUser.username});
-  loadRooms();
-  showToast("Stanza creata",name);
-};
-
-function selectRoom(r){
-  currentRoom=r;
-  roomHeader.textContent="Stanza: "+r;
-  messagesEl.innerHTML="";
-  const mRef=ref(db,`chats/${r}/messages`);
-  onValue(mRef,snap=>{
-    messagesEl.innerHTML="";
-    if(!snap.exists()) return;
-    Object.values(snap.val()).forEach(m=>{
-      const div=document.createElement("div"); div.className="msg"+(m.user===currentUser.username?" me":"");
-      div.textContent=m.text;
-      messagesEl.appendChild(div);
-    });
-    messagesEl.scrollTop=messagesEl.scrollHeight;
-  });
-}
-
-/* PROFILE */
-saveProfileBtn.onclick=async ()=>{
-  if(!currentUser) return;
-  const real=editRealName.value.trim();
-  const pass=editPassword.value.trim();
-  const updates={};
-  if(real) updates.realName=real;
-  if(pass) updates.password=pass;
-  await update(ref(db,"users/"+currentUser.username),updates);
-  setLoggedUser({...currentUser,...updates});
-  showToast("Profilo aggiornato","Modifiche salvate");
-  editRealName.value=""; editPassword.value="";
-};
-
-/* ADMIN USER MANAGEMENT */
-async function loadAdminUsers(){
-  if(!currentUser||currentUser.role!=="admin") return;
-  const snap=await get(ref(db,"users"));
-  adminUsers.innerHTML="";
-  notifyUserSelect.innerHTML='<option value="">Seleziona</option>';
-  if(!snap.exists()) return;
-  Object.entries(snap.val()).forEach(([u,v])=>{
-    const div=document.createElement("div"); div.className="userOption";
-    div.innerHTML=`<span>${u} (${v.role})</span>
-      <div>
-        <button data-block style="background:#facc15;padding:6px;border-radius:6px">Blocca</button>
-        <button data-unblock style="background:#22c55e;padding:6px;border-radius:6px">Sblocca</button>
-        <button data-role style="background:#0078ff;padding:6px;border-radius:6px">Toggle ruolo</button>
-        <button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button>
-      </div>`;
-    adminUsers.appendChild(div);
-    notifyUserSelect.innerHTML+=`<option value="${u}">${u}</option>`;
-    div.querySelector("[data-block]").onclick=()=>{ update(ref(db,"users/"+u),{blocked:true}); checkBlocked(); showToast("Utente bloccato",u); }
-    div.querySelector("[data-unblock]").onclick=()=>{ update(ref(db,"users/"+u),{blocked:false}); checkBlocked(); showToast("Utente sbloccato",u); }
-    div.querySelector("[data-role]").onclick=async ()=>{
-      const newRole=(v.role==="admin")?"user":"admin"; await update(ref(db,"users/"+u),{role:newRole}); loadAdminUsers(); showToast("Ruolo modificato",`${u} → ${newRole}`);
-    }
-    div.querySelector("[data-del]").onclick=async ()=>{
-      if(confirm(`Eliminare ${u}?`)){ await remove(ref(db,"users/"+u)); loadAdminUsers(); showToast("Utente eliminato",u);}
-    }
-  });
-}
-
-/* NOTIFICHE */
-sendNotifyBtn.onclick=async ()=>{
-  const user=notifyUserSelect.value; if(!user) return;
-  const txt=notifyText.value.trim(); if(!txt) return;
-  await push(ref(db,`notifications/${user}`),{text:txt,time:Date.now()});
-  notifyText.value="";
-  showToast("Notifica inviata",user);
-}
-
-async function loadNotifications(){
-  if(!currentUser) return;
-  const notifRef=ref(db,"notifications/"+currentUser.username);
-  onChildAdded(notifRef,snap=>{
-    if(!snap.exists()) return;
-    const div=document.createElement("div");
-    div.textContent=snap.val().text;
-    document.getElementById("notificationsList").appendChild(div);
-  });
-}
-
-/* GENERA CODICE TEMPORANEO */
-genCodeBtn.onclick=async ()=>{
-  const code=Math.random().toString(36).substring(2,8).toUpperCase();
-  const expire=Date.now()+30*60*1000;
-  await set(ref(db,"tempCode"),{code,expire});
-  lastCodeSpan.textContent=code;
-  showToast("Codice generato",code);
-}
-
-useCodeBtn.onclick=async ()=>{
-  const snap=await get(ref(db,"tempCode"));
-  if(!snap.exists()){ alert("Nessun codice"); return; }
-  const {code,expire}=snap.val();
-  if(codeInput.value.toUpperCase()!==code){ alert("Codice errato"); return; }
-  if(Date.now()>expire){ alert("Codice scaduto"); return; }
-  showToast("Codice valido","Ora puoi creare stanza");
-  codeInput.value="";
-}
-
-/* SITE OFF/ON */
-siteOffBtn.onclick=async ()=>{
-  await set(ref(db,"siteOff/status"),true);
+/* TOGGLE SITE ON/OFF */
+toggleSite?.addEventListener("change", async (e)=>{
+  siteOff = e.target.checked;
   checkBlocked();
-  showToast("Sito spento","Gli utenti non loggati non possono usare il sito");
-}
+});
 
-siteOnBtn.onclick=async ()=>{
-  await set(ref(db,"siteOff/status"),false);
-  checkBlocked();
-  showToast("Sito riacceso","Tutti gli utenti possono accedere");
-}
-
-/* THEME */
-let dark=false;
-themeBtn.onclick=()=>{ dark=!dark; document.documentElement.setAttribute("data-theme",dark?"dark":"light"); themeBtn.textContent=dark?"☀️":"🌙"; }
+themeBtn.onclick=()=>{ 
+  document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"":"dark"; 
+};
 
 /* INIT */
 setLoggedUser(currentUser);
 loadRooms();
+populateUsersSelect();
 loadAdminUsers();
 loadNotifications();
 </script>
