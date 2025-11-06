@@ -1,448 +1,259 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Chat</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chat 4A Informatica</title>
 <style>
-  :root{
-    --bg:#f6f8fa; --panel:#fff; --text:#111; --accent:#0078ff;
-    --success:#22c55e; --warn:#facc15; --danger:#ef4444;
-  }
-  [data-theme="dark"]{
-    --bg:#071022; --panel:rgba(20,25,40,0.9); --text:#e6eef8;
-  }
-  *{box-sizing:border-box}
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
-  header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.05)}
-  header h1{margin:0;font-size:1rem}
-  #themeBtn{background:none;border:0;cursor:pointer;font-size:18px}
-  main{flex:1;display:flex;gap:16px;padding:16px}
-  .col{background:var(--panel);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(10,10,10,.04)}
-  #left{width:320px;min-height:60vh;display:flex;flex-direction:column;gap:12px}
-  label{display:block;font-size:13px;margin-bottom:6px}
-  input,select,button{font-size:14px}
-  input,select{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;background:transparent}
-  button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
-  .small{padding:6px 8px;font-size:13px}
-  #roomsList{display:flex;flex-direction:column;gap:8px}
-  .roomItem{padding:8px;border-radius:8px;border:1px solid #e6e6e6;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
-  .roomItem.active{border-color:var(--accent);background:rgba(0,120,255,0.06)}
-  #right{flex:1;display:flex;flex-direction:column;min-height:60vh}
-  #chatArea{flex:1;display:flex;flex-direction:column;background:var(--panel);padding:12px;border-radius:12px;overflow:hidden}
-  #messages{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
-  .msg{max-width:70%;padding:8px 10px;border-radius:10px;background:#eef2ff}
-  .msg.me{align-self:flex-end;background:var(--accent);color:#fff}
-  .msg.admin{border:2px solid #ef4444}
-  .meta{font-size:12px;color:gray;margin-bottom:6px}
-  #sendRow{display:flex;gap:8px;padding-top:8px}
-  #sendRow input{flex:1}
-  #adminPanel{margin-top:12px;padding:10px;border-radius:8px;border:1px dashed #ddd;display:none}
-  .userOption{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;border:1px solid #eef; margin-bottom:6px}
-  #toastContainer{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-  .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px;opacity:1;transition:0.4s}
-  .toast strong{display:block}
-  #blockedOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
-  @media(max-width:900px){main{flex-direction:column;padding:12px}#left{width:100%}}
+:root {
+  --primary:#1d4ed8; --danger:#ef4444; --success:#22c55e; --bg:#f4f5f7; --panel:#fff; --text:#111; --accent:#2563eb;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif;}
+body{background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;}
+header{background:var(--primary);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;}
+main{flex:1;display:flex;gap:16px;padding:16px;}
+.col{background:var(--panel);border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,.1);}
+#left{width:300px;display:flex;flex-direction:column;gap:12px;}
+#right{flex:1;display:flex;flex-direction:column;}
+input,textarea,button{font-size:14px;border-radius:8px;padding:8px;}
+input,textarea{width:100%;border:1px solid #ccc;background:transparent;}
+button{border:none;cursor:pointer;color:#fff;background:var(--accent);}
+#chatArea{flex:1;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:var(--panel);}
+#messages{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.msg{max-width:70%;padding:8px 12px;border-radius:12px;background:#eef2ff;position:relative;}
+.msg.me{align-self:flex-end;background:var(--accent);color:#fff;}
+.msg.admin{border:2px solid var(--danger);}
+.meta{font-size:12px;color:gray;margin-bottom:4px;}
+#sendRow{display:flex;gap:8px;padding-top:8px;}
+#sendRow input[type="text"]{flex:1;}
+#toastContainer{position:fixed;top:14px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.toast{background:var(--panel);padding:8px 12px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.2);}
+#adminPanel{display:none;margin-top:16px;padding:12px;border:1px solid #ccc;border-radius:8px;display:flex;flex-direction:column;gap:8px;}
+.pendingMsg{font-size:14px;color:var(--primary);margin-top:12px;}
 </style>
 </head>
 <body>
 <header>
-  <h1>Chat</h1>
-  <div>
-    <button id="themeBtn">🌙</button>
-  </div>
+  <h1>Chat 4A Informatica</h1>
 </header>
-
 <main>
   <section id="left" class="col">
     <div id="authBox">
-      <h3>Accedi / Registrati</h3>
-      <label>Nome vero</label><input id="realName" placeholder="Es. Marco Rossi" />
-      <label>Nome utente (chat)</label><input id="username" placeholder="Es. marco123" />
-      <label>Password</label><input id="password" type="password" placeholder="password" />
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="btnRegister" class="small">Registrati</button>
-        <button id="btnLogin" class="small" style="background:#6b7280">Accedi</button>
-      </div>
+      <h3>Login / Registrazione</h3>
+      <input id="username" placeholder="Nome utente">
+      <input id="password" type="password" placeholder="Password">
+      <button id="btnLogin">Accedi / Registrati</button>
     </div>
-
-    <div>
-      <h3 style="margin-bottom:8px">Stanze</h3>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input id="newRoomName" placeholder="Nome nuova stanza" />
-        <button id="createRoomBtn" class="small">Crea</button>
-      </div>
-      <div id="roomsList"></div>
-    </div>
-
-    <div style="margin-top:10px">
-      <h3>Utente corrente</h3>
+    <div style="margin-top:12px">
+      <strong>Utente corrente:</strong>
       <div id="loggedAs">Non connesso</div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="btnLogout" class="small" style="background:#ef4444">Esci</button>
-      </div>
+      <button id="btnLogout" style="background:var(--danger);margin-top:6px">Esci</button>
     </div>
-
-    <div id="profileBox" style="margin-top:12px;">
-      <h3>Modifica profilo</h3>
-      <input id="editRealName" placeholder="Nuovo nome" />
-      <input id="editPassword" placeholder="Nuova password" type="password" />
-      <button id="saveProfileBtn" class="small">Salva modifiche</button>
+    <div id="adminPanel">
+      <h3>Strumenti Admin</h3>
+      <input id="targetUser" placeholder="Nome utente">
+      <button id="btnMute">Muta</button>
+      <button id="btnUnmute">Smutare</button>
+      <button id="btnBlock">Oscura chat</button>
+      <button id="btnUnblock">Rendi visibile</button>
+      <button id="btnClear" style="background:var(--danger)">Svuota chat</button>
+      <input id="notifyUser" placeholder="Utente destinatario">
+      <input id="notifyMsg" placeholder="Messaggio notifica">
+      <button id="btnNotify">Invia notifica</button>
+      <h4>Registrazioni in attesa</h4>
+      <div id="pendingList"></div>
     </div>
   </section>
 
   <section id="right" class="col">
     <div id="chatArea">
-      <div id="roomHeader" class="meta">Seleziona o crea una stanza</div>
       <div id="messages"></div>
-      <div id="sendRow" style="margin-top:8px">
-        <input id="msgInput" placeholder="Scrivi un messaggio..." />
+      <div id="sendRow">
+        <input id="msgInput" type="text" placeholder="Scrivi un messaggio...">
         <button id="sendBtn">Invia</button>
       </div>
-
-      <div id="adminPanel">
-        <h3>🔧 Pannello Admin</h3>
-        <div style="margin-bottom:8px">
-          <button id="genCodeBtn" class="small">Genera codice temporaneo (30 min)</button>
-          <span id="lastCode" style="margin-left:8px;color:gray"></span>
-        </div>
-        <div style="margin-bottom:8px">
-          <h4>Invia notifica a utente</h4>
-          <select id="notifyUserSelect" style="width:100%;padding:8px;border-radius:8px"></select>
-          <input id="notifyText" placeholder="Testo notifica" style="margin-top:6px" />
-          <div style="display:flex;gap:8px;margin-top:6px">
-            <button id="sendNotifyBtn" class="small">Invia notifica</button>
-          </div>
-        </div>
-
-        <div>
-          <h4>Gestisci utenti</h4>
-          <div id="adminUsers"></div>
-        </div>
-
-        <div>
-          <h4>Gestisci stanze</h4>
-          <div id="adminRooms"></div>
-        </div>
-      </div>
-
-      <div style="margin-top:12px">
-        <h3>Notifiche</h3>
-        <div id="notificationsList" style="max-height:200px;overflow:auto;border:1px solid #ccc;padding:6px;border-radius:6px"></div>
-      </div>
-
+      <div id="pendingNotice" class="pendingMsg"></div>
     </div>
   </section>
 </main>
-
 <div id="toastContainer"></div>
-
-<div id="blockedOverlay">
-  <h1>Sei stato bloccato</h1>
-  <p>L'amministratore ti ha bloccato e non puoi più usare il sito.</p>
-</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getDatabase, ref, set, push, onChildAdded, get, update, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, remove, get, update, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
   authDomain: "classe4a-game.firebaseapp.com",
   databaseURL: "https://classe4a-game-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "classe4a-game",
-  storageBucket: "classe4a-game.storages.app",
+  storageBucket: "classe4a-game.appspot.com",
   messagingSenderId: "558916476831",
   appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ELEMENTS */
-const realNameIn = document.getElementById("realName");
-const usernameIn = document.getElementById("username");
-const passwordIn = document.getElementById("password");
-const btnRegister = document.getElementById("btnRegister");
-const btnLogin = document.getElementById("btnLogin");
-const btnLogout = document.getElementById("btnLogout");
-const loggedAs = document.getElementById("loggedAs");
+/* ELEMENTI DOM */
+const usernameIn=document.getElementById("username");
+const passwordIn=document.getElementById("password");
+const btnLogin=document.getElementById("btnLogin");
+const btnLogout=document.getElementById("btnLogout");
+const loggedAs=document.getElementById("loggedAs");
+const msgInput=document.getElementById("msgInput");
+const sendBtn=document.getElementById("sendBtn");
+const messagesEl=document.getElementById("messages");
+const adminPanel=document.getElementById("adminPanel");
+const btnMute=document.getElementById("btnMute");
+const btnUnmute=document.getElementById("btnUnmute");
+const btnBlock=document.getElementById("btnBlock");
+const btnUnblock=document.getElementById("btnUnblock");
+const btnClear=document.getElementById("btnClear");
+const notifyUser=document.getElementById("notifyUser");
+const notifyMsg=document.getElementById("notifyMsg");
+const btnNotify=document.getElementById("btnNotify");
+const targetUser=document.getElementById("targetUser");
+const toastContainer=document.getElementById("toastContainer");
+const pendingList=document.getElementById("pendingList");
+const pendingNotice=document.getElementById("pendingNotice");
 
-const roomsList = document.getElementById("roomsList");
-const createRoomBtn = document.getElementById("createRoomBtn");
-const newRoomName = document.getElementById("newRoomName");
-
-const roomHeader = document.getElementById("roomHeader");
-const messagesEl = document.getElementById("messages");
-const msgInput = document.getElementById("msgInput");
-const sendBtn = document.getElementById("sendBtn");
-
-const adminPanel = document.getElementById("adminPanel");
-const notifyUserSelect = document.getElementById("notifyUserSelect");
-const notifyText = document.getElementById("notifyText");
-const sendNotifyBtn = document.getElementById("sendNotifyBtn");
-const adminRooms = document.getElementById("adminRooms");
-const adminUsers = document.getElementById("adminUsers");
-const notificationsList = document.getElementById("notificationsList");
-
-const editRealName = document.getElementById("editRealName");
-const editPassword = document.getElementById("editPassword");
-const saveProfileBtn = document.getElementById("saveProfileBtn");
-
-const themeBtn = document.getElementById("themeBtn");
-const toastContainer = document.getElementById("toastContainer");
-const blockedOverlay = document.getElementById("blockedOverlay");
-
-let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
-let currentRoom = null;
+let currentUser=null;
 
 /* TOAST */
-function showToast(title, text, timeout = 6000) {
-  const t = document.createElement("div");
-  t.className = "toast";
-  t.innerHTML = `<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
+function showToast(title,text,timeout=4000){
+  const t=document.createElement("div"); t.className="toast";
+  t.innerHTML=`<strong>${title}</strong><div>${text}</div>`;
   toastContainer.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-8px)'; setTimeout(() => t.remove(), 400); }, timeout);
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),400)},timeout);
 }
 
-/* LOGGED USER */
-function setLoggedUser(u) {
-  currentUser = u;
-  if (u) {
-    localStorage.setItem("currentUser", JSON.stringify(u));
-    loggedAs.textContent = `${u.realName} (${u.username}) [${u.role}]`;
-    btnLogout.style.display = "inline-block";
-    adminPanel.style.display = (u.role === "admin") ? "block" : "none";
+/* LOGIN / REGISTRAZIONE */
+btnLogin.onclick=async()=>{
+  const username=usernameIn.value.trim();
+  const password=passwordIn.value.trim();
+  if(!username||!password){ alert("Inserisci credenziali"); return; }
+
+  const userRef=ref(db,"users/"+username);
+  const snap=await get(userRef);
+  if(!snap.exists()){
+    // NUOVA REGISTRAZIONE
+    await update(userRef,{password,role:"user",muted:false,blocked:false,status:"pending"});
+    currentUser={username,role:"user",muted:false,blocked:false,status:"pending"};
+    pendingNotice.textContent="Registrazione inviata, in attesa di approvazione admin.";
+    showToast("Registrazione","Richiesta inviata. Attendi approvazione admin.");
+    // Notifica all'admin
+    await push(ref(db,"pendingRegistrations"),{user:username,time:Date.now()});
   } else {
-    localStorage.removeItem("currentUser");
-    loggedAs.textContent = "Non connesso";
-    btnLogout.style.display = "none";
-    adminPanel.style.display = "none";
+    const data=snap.val();
+    if(data.password!==password){ alert("Password errata"); return; }
+    currentUser={username,role:data.role,muted:data.muted,blocked:data.blocked,status:data.status||"active"};
+    if(currentUser.status==="pending"){
+      pendingNotice.textContent="La tua registrazione è in attesa di approvazione admin.";
+      showToast("Attesa","Registrazione in attesa di approvazione admin.");
+    } else pendingNotice.textContent="";
   }
-  checkBlocked();
-}
 
-/* CHECK BLOCKED */
-async function checkBlocked() {
-  if (!currentUser) return; // non bloccare se non loggato
-  const snap = await get(ref(db, "users/" + currentUser.username));
-  const user = snap.exists() ? snap.val() : null;
-  if (user && user.blocked) {
-    blockedOverlay.style.display = "flex";
-    document.querySelectorAll("input,button,select,textarea").forEach(el => el.disabled = true);
-  } else {
-    blockedOverlay.style.display = "none";
-    document.querySelectorAll("input,button,select,textarea").forEach(el => el.disabled = false);
-  }
-}
+  loggedAs.textContent=`${currentUser.username} [${currentUser.role}]`;
 
-/* AUTH */
-async function registerUser() {
-  const realName = realNameIn.value.trim();
-  const username = usernameIn.value.trim();
-  const password = passwordIn.value;
-  if (!realName || !username || !password) { alert("Compila tutti i campi"); return; }
-  const userRef = ref(db, "users/" + username);
-  const snap = await get(userRef);
-  if (snap.exists()) { alert("Username già usato"); return; }
-  const usersSnap = await get(ref(db, "users"));
-  const role = (usersSnap.exists() ? "user" : "admin");
-  await set(userRef, { realName, password, role });
-  setLoggedUser({ username, realName, role });
-  showToast("Benvenuto", `Registrato come ${role}`);
-  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
-}
+  // MOSTRA PANEL ADMIN SOLO PER ADMIN
+  adminPanel.style.display=currentUser.role==="admin"?"flex":"none";
 
-async function loginUser() {
-  const username = usernameIn.value.trim();
-  const password = passwordIn.value;
-  if (!username || !password) { alert("Inserisci credenziali"); return; }
-  const userRef = ref(db, "users/" + username);
-  const snap = await get(userRef);
-  if (!snap.exists() || snap.val().password !== password) { alert("Credenziali errate"); return; }
-  const u = snap.val();
-  setLoggedUser({ username, realName: u.realName, role: u.role });
-  showToast("Accesso", `Ciao ${u.realName}`);
-  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
-}
-
-btnRegister.onclick = registerUser;
-btnLogin.onclick = loginUser;
-btnLogout.onclick = () => { setLoggedUser(null); };
-
-/* SEND MSG ON ENTER */
-msgInput.addEventListener("keydown", e => { if (e.key === "Enter") { sendBtn.click(); e.preventDefault(); } });
-
-/* ROOMS */
-async function loadRooms() {
-  roomsList.innerHTML = "";
-  const snap = await get(ref(db, "chats"));
-  const data = snap.exists() ? snap.val() : {};
-  const keys = Object.keys(data);
-  if (keys.length === 0) { roomsList.innerHTML = '<div style="color:gray">Nessuna stanza</div>'; return; }
-  keys.forEach(k => {
-    const el = document.createElement("div");
-    el.className = "roomItem" + (k === currentRoom ? " active" : "");
-    el.innerHTML = `<span>${k}</span><button class="small" data-room="${k}">Entra</button>`;
-    roomsList.appendChild(el);
-    el.querySelector("button").onclick = () => selectRoom(k);
+  // NOTIFICHE LIVE
+  const notifRef=ref(db,"notifications/"+currentUser.username);
+  onChildAdded(notifRef,(snap)=>{
+    const n=snap.val();
+    showToast("Notifica",n.message);
+    remove(ref(db,"notifications/"+currentUser.username+"/"+snap.key));
   });
 
-  // Admin rooms
-  adminRooms.innerHTML = "";
-  if (currentUser && currentUser.role === "admin") {
-    keys.forEach(k => {
-      const d = document.createElement("div"); d.className = "userOption";
-      d.innerHTML = `<span>${k}</span><div><button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
-      adminRooms.appendChild(d);
-      d.querySelector("button").onclick = async () => { if (confirm("Eliminare stanza " + k + "?")) { await remove(ref(db, "chats/" + k)); loadRooms(); showToast("Stanza eliminata", k); } };
+  // CARICAMENTO REGISTRAZIONI PENDING PER ADMIN
+  if(currentUser.role==="admin"){
+    const pendingRef=ref(db,"pendingRegistrations");
+    onChildAdded(pendingRef,(snap)=>{
+      const p=snap.val();
+      const div=document.createElement("div");
+      div.textContent=p.user;
+      const acceptBtn=document.createElement("button"); acceptBtn.textContent=" Accetta "; acceptBtn.style.backgroundColor="var(--success)";
+      const rejectBtn=document.createElement("button"); rejectBtn.textContent=" Rifiuta "; rejectBtn.style.backgroundColor="var(--danger)";
+      const suspendBtn=document.createElement("button"); suspendBtn.textContent=" Metti in attesa "; suspendBtn.style.backgroundColor="var(--danger)";
+      acceptBtn.onclick=async()=>{
+        await update(ref(db,"users/"+p.user),{status:"active"});
+        await remove(ref(db,"pendingRegistrations/"+snap.key));
+        await push(ref(db,"notifications/"+p.user),{message:"Registrazione approvata. Ricarica la pagina accedendo e potrai scrivere.",time:Date.now()});
+      };
+      rejectBtn.onclick=async()=>{
+        await remove(ref(db,"users/"+p.user));
+        await remove(ref(db,"pendingRegistrations/"+snap.key));
+        await push(ref(db,"notifications/"+p.user),{message:"Registrazione rifiutata dall'admin.",time:Date.now()});
+      };
+      suspendBtn.onclick=async()=>{
+        await update(ref(db,"users/"+p.user),{status:"suspend"});
+        await push(ref(db,"notifications/"+p.user),{message:"Un admin ha messo in sospensione il tuo account per sottoporlo ad un'ulteriore revisione. Attendi che venga revisionato.",time:Date.now()});
+      };
+      div.appendChild(acceptBtn); div.appendChild(rejectBtn); div.appendChild(suspendBtn);
+      pendingList.appendChild(div);
     });
   }
-}
-
-function selectRoom(name) {
-  currentRoom = name;
-  roomHeader.textContent = `Stanza: ${name}`;
-  messagesEl.innerHTML = "";
-  const messagesRef = ref(db, `chats/${name}/messages`);
-  onChildAdded(messagesRef, (snap) => {
-    const m = snap.val();
-    const div = document.createElement("div");
-    div.className = "msg" + (currentUser && m.user === currentUser.username ? " me" : "") + (m.user === "cristianrusso" ? " admin" : "");
-    const time = new Date(m.time).toLocaleTimeString();
-    div.innerHTML = `<div class="meta"><strong>${m.user}</strong> • ${time}</div><div>${m.text}</div>`;
-    messagesEl.appendChild(div);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  });
-}
-
-/* CREATE ROOM */
-createRoomBtn.onclick = async () => {
-  const name = newRoomName.value.trim();
-  if (!name) return;
-  const snap = await get(ref(db, "chats/" + name));
-  if (snap.exists()) { alert("Stanza già esistente"); return; }
-  await set(ref(db, "chats/" + name), { messages: {} });
-  newRoomName.value = "";
-  loadRooms();
-  showToast("Stanza creata", name);
 };
 
-/* SEND MESSAGE */
-sendBtn.onclick = async () => {
-  if (!currentUser || !currentRoom) return;
-  const text = msgInput.value.trim();
-  if (!text) return;
-  const mRef = ref(db, `chats/${currentRoom}/messages`);
-  await push(mRef, { user: currentUser.username, text, time: Date.now() });
-  msgInput.value = "";
+/* LOGOUT */
+btnLogout.onclick=()=>{ 
+  currentUser=null; 
+  loggedAs.textContent="Non connesso"; 
+  adminPanel.style.display="none"; 
+  pendingNotice.textContent="";
 };
 
-/* PROFILE EDIT */
-saveProfileBtn.onclick = async () => {
-  if (!currentUser) return;
-  const updates = {};
-  if (editRealName.value.trim()) updates.realName = editRealName.value.trim();
-  if (editPassword.value) updates.password = editPassword.value;
-  if (Object.keys(updates).length === 0) return;
-  await update(ref(db, "users/" + currentUser.username), updates);
-  const snap = await get(ref(db, "users/" + currentUser.username));
-  setLoggedUser({ username: currentUser.username, realName: snap.val().realName, role: snap.val().role });
-  showToast("Profilo aggiornato", "Le modifiche sono state salvate");
+/* INVIO MESSAGGI TESTUALI */
+sendBtn.onclick=async()=>{
+  if(!currentUser){ alert("Devi fare login"); return; }
+  if(currentUser.muted||currentUser.blocked){ alert("Non puoi scrivere in chat!"); return; }
+  if(currentUser.status==="pending"){ alert("Registrazione non approvata"); return; }
+  const txt=msgInput.value.trim();
+  if(!txt) return;
+  await push(ref(db,"chatGeneral/messages"),{
+    user:currentUser.username,
+    role:currentUser.role,
+    text:txt,
+    time:Date.now()
+  });
+  msgInput.value="";
 };
 
-/* ADMIN USERS */
-async function populateUsersSelect() {
-  const snap = await get(ref(db, "users"));
-  notifyUserSelect.innerHTML = "";
-  if (!snap.exists()) return;
-  Object.keys(snap.val()).forEach(u => {
-    const opt = document.createElement("option"); opt.value = u; opt.textContent = u;
-    notifyUserSelect.appendChild(opt);
-  });
-}
+/* CARICAMENTO MESSAGGI */
+const messagesRef=ref(db,"chatGeneral/messages");
+onChildAdded(messagesRef,(snap)=>{
+  const m=snap.val();
+  const div=document.createElement("div");
+  div.className="msg"+(m.user===currentUser?.username?" me":"")+(m.role==="admin"?" admin":"");
+  div.innerHTML=`<div class="meta"><strong>${m.user}${m.role==="admin"?" [ADMIN]":""}</strong> • ${new Date(m.time).toLocaleTimeString()}</div><div>${m.text}</div>`;
 
-async function loadAdminUsers() {
-  const snap = await get(ref(db, "users"));
-  adminUsers.innerHTML = "";
-  if (!snap.exists()) return;
-  Object.entries(snap.val()).forEach(([uname, u]) => {
-    const d = document.createElement("div"); d.className = "userOption";
-    d.innerHTML = `<span>${uname} [${u.role}]</span>
-      <div>
-        <button data-toggleBlock class="small">${u.blocked ? "Sblocca" : "Blocca"}</button>
-        <button data-toggleRole class="small">Ruolo</button>
-        <button data-del class="small" style="background:#ef4444">Elimina</button>
-      </div>`;
-    adminUsers.appendChild(d);
+  if(currentUser?.role==="admin"){
+    const delBtn=document.createElement("button");
+    delBtn.textContent="Elimina";
+    delBtn.style.cssText="position:absolute;top:4px;right:4px;background:var(--danger);color:#fff;padding:2px 6px;font-size:11px;border-radius:4px;border:0;cursor:pointer";
+    delBtn.onclick=async()=>{ await remove(ref(db,"chatGeneral/messages/"+snap.key)); showToast("Admin","Messaggio eliminato"); };
+    div.appendChild(delBtn);
+  }
 
-    d.querySelector("[data-toggleBlock]").onclick = async () => {
-      await update(ref(db, "users/" + uname), { blocked: !u.blocked });
-      showToast(u.blocked ? "Utente sbloccato" : "Utente bloccato", uname);
-      loadAdminUsers();
-      checkBlocked();
-    };
-    d.querySelector("[data-toggleRole]").onclick = async () => {
-      const newRole = u.role === "admin" ? "user" : "admin";
-      await update(ref(db, "users/" + uname), { role: newRole });
-      showToast("Ruolo modificato", uname + " -> " + newRole);
-      loadAdminUsers();
-      if (currentUser.username === uname) setLoggedUser({ ...currentUser, role: newRole });
-    };
-    d.querySelector("[data-del]").onclick = async () => {
-      if (confirm("Eliminare utente " + uname + "?")) {
-        await remove(ref(db, "users/" + uname));
-        showToast("Utente eliminato", uname);
-        loadAdminUsers(); populateUsersSelect();
-        if (currentUser.username === uname) setLoggedUser(null);
-      }
-    };
-  });
-}
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop=messagesEl.scrollHeight;
+});
 
-/* NOTIFICATIONS */
-sendNotifyBtn.onclick = async () => {
-  const target = notifyUserSelect.value;
-  const text = notifyText.value.trim();
-  if (!target || !text) return;
-  const nRef = ref(db, "notifications/" + target);
-  await push(nRef, { text, time: Date.now() });
-  notifyText.value = "";
-  showToast("Notifica inviata", target);
+/* FUNZIONI ADMIN */
+btnClear.onclick=async()=>{ if(currentUser?.role==="admin" && confirm("Svuotare tutta la chat?")) await remove(ref(db,"chatGeneral/messages")); };
+btnMute.onclick=()=>{ if(currentUser?.role==="admin" && targetUser.value) update(ref(db,"users/"+targetUser.value),{muted:true}); };
+btnUnmute.onclick=()=>{ if(currentUser?.role==="admin" && targetUser.value) update(ref(db,"users/"+targetUser.value),{muted:false}); };
+btnBlock.onclick=()=>{ if(currentUser?.role==="admin" && targetUser.value) update(ref(db,"users/"+targetUser.value),{blocked:true}); };
+btnUnblock.onclick=()=>{ if(currentUser?.role==="admin" && targetUser.value) update(ref(db,"users/"+targetUser.value),{blocked:false}); };
+btnNotify.onclick=async()=>{ 
+  if(currentUser?.role!=="admin") return;
+  const u=notifyUser.value.trim();
+  const m=notifyMsg.value.trim();
+  if(!u||!m) return;
+  await push(ref(db,"notifications/"+u),{message:m,time:Date.now()});
+  showToast("Admin","Notifica inviata a "+u);
 };
-
-async function loadNotifications() {
-  notificationsList.innerHTML = "";
-  if (!currentUser) return;
-  const nRef = ref(db, "notifications/" + currentUser.username);
-  onChildAdded(nRef, (snap) => {
-    const n = snap.val();
-    const d = document.createElement("div");
-    const time = new Date(n.time).toLocaleTimeString();
-    d.textContent = `${time}: ${n.text}`;
-    notificationsList.appendChild(d);
-  });
-}
-
-/* THEME TOGGLE */
-let dark = localStorage.getItem("dark") === "true";
-function applyTheme() {
-  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-  themeBtn.textContent = dark ? "☀️" : "🌙";
-}
-themeBtn.onclick = () => { dark = !dark; localStorage.setItem("dark", dark); applyTheme(); }
-applyTheme();
-
-/* INIT */
-if (currentUser) {
-  checkBlocked();
-  loadRooms();
-  populateUsersSelect();
-  loadAdminUsers();
-  loadNotifications();
-  setLoggedUser(currentUser);
-}
 </script>
 </body>
 </html>
