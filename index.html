@@ -1,118 +1,100 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4A Informatica</title>
-  <style>
-    :root {
-      --bg-light: #f6f8fa;
-      --bg-dark: #0f172a;
-      --text-light: #0f172a;
-      --text-dark: #f6f8fa;
-      --accent: #0078ff;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: "Poppins", sans-serif;
-      background-color: var(--bg-light);
-      color: var(--text-light);
-      transition: background 0.4s, color 0.4s;
-    }
-
-    body.dark {
-      background-color: var(--bg-dark);
-      color: var(--text-dark);
-    }
-
-    .container {
-      text-align: center;
-      animation: fadeIn 1.5s ease;
-    }
-
-    h1 {
-      font-size: 2em;
-      font-weight: 500;
-      margin-bottom: 20px;
-      letter-spacing: 0.5px;
-    }
-
-    .mystery-button {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 12px 28px;
-      border-radius: 12px;
-      font-size: 1em;
-      cursor: pointer;
-      transition: 0.3s;
-      box-shadow: 0 0 10px rgba(0, 120, 255, 0.3);
-    }
-
-    .mystery-button:hover {
-      background: #005ecc;
-      box-shadow: 0 0 15px rgba(0, 120, 255, 0.5);
-    }
-
-    .toggle-theme {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: none;
-      border: none;
-      font-size: 1.3em;
-      cursor: pointer;
-      color: inherit;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (max-width: 480px) {
-      h1 { font-size: 1.3em; }
-      .mystery-button { padding: 10px 20px; font-size: 0.9em; }
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>4A Informatica - Home</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f6f8fa;color:#111}
+  header{background:#0078ff;color:#fff;padding:16px;text-align:center;font-size:1.2rem}
+  main{padding:16px;max-width:800px;margin:auto}
+  .ticketItem{background:#fff;padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-bottom:12px}
+  input,textarea{width:100%;padding:6px;margin:4px 0;border-radius:6px;border:1px solid #ccc}
+  button{padding:6px 10px;margin:4px;border:none;border-radius:6px;cursor:pointer;background:#0078ff;color:#fff}
+  .comment{margin-left:12px;padding:4px;border-left:2px solid #0078ff;font-size:13px;color:#333}
+</style>
 </head>
 <body>
-  <button class="toggle-theme" id="themeToggle">☀️</button>
+<header>Segnala Bug / Idea</header>
+<main>
+  <h3>Invia richiesta</h3>
+  <input id="name" placeholder="Nome" />
+  <input id="email" placeholder="Email" />
+  <textarea id="message" placeholder="Messaggio o idea..."></textarea>
+  <button id="sendTicketBtn">Invia richiesta</button>
 
-  <div class="container">
-    <h1>Ciao 👋</h1>
-    <p>Benvenuto nella home.</p>
-    <button class="mystery-button" id="enterButton">Entra</button>
+<p>La home non è ancora disponibile. Tuttavia, è presente questo form per suggerire idee di impostazione e di grafica, o per segnalare bug (ovviamente va sempre riportato).</p>
+        <h3>Tutti i ticket</h3>
+  <div id="ticketsList">
+    <p>Caricamento ticket...</p>
   </div>
+</main>
 
-  <script>
-    // Rileva preferenza utente
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const body = document.body;
-    const toggle = document.getElementById("themeToggle");
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getDatabase, ref, push, get, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    if (prefersDark) body.classList.add("dark");
+const firebaseConfig = {
+  apiKey: "AIzaSyBj1gIrPyg7r3CGXn7QdUNN6WqU-X93ZeA",
+  authDomain: "classe4a-game.firebaseapp.com",
+  databaseURL: "https://classe4a-game-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "classe4a-game",
+  storageBucket: "classe4a-game.appspot.com",
+  messagingSenderId: "558916476831",
+  appId: "1:558916476831:web:88bcc4aa4aeb092064e7aa"
+};
 
-    // Cambia tema manualmente
-    toggle.addEventListener("click", () => {
-      body.classList.toggle("dark");
-      toggle.textContent = body.classList.contains("dark") ? "🌙" : "☀️";
-    });
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    // Effetto "misterioso" del bottone
-    document.getElementById("enterButton").addEventListener("click", () => {
-      // piccolo effetto prima del redirect
-      document.querySelector(".container").style.opacity = "0";
-      setTimeout(() => {
-        window.location.href = "/orario.html";
-      }, 600);
-    });
-  </script>
+const nameIn = document.getElementById("name");
+const emailIn = document.getElementById("email");
+const messageIn = document.getElementById("message");
+const sendBtn = document.getElementById("sendTicketBtn");
+const ticketsList = document.getElementById("ticketsList");
+
+// INVIA TICKET
+sendBtn.onclick = async () => {
+  const name = nameIn.value.trim();
+  const email = emailIn.value.trim();
+  const message = messageIn.value.trim();
+  if(!name || !email || !message){ alert("Compila tutti i campi"); return; }
+  const ticketRef = ref(db,"tickets");
+  await push(ticketRef,{name,email,message,status:"in attesa",editable:true});
+  nameIn.value=""; emailIn.value=""; messageIn.value="";
+  alert("Ticket inviato!");
+};
+
+// CARICAMENTO TICKET UTENTE
+async function loadUserTickets(){
+  ticketsList.innerHTML="";
+  const snap = await get(ref(db,"tickets"));
+  if(!snap.exists()){ ticketsList.innerHTML="<p>Nessun ticket presente</p>"; return; }
+  const data = snap.val();
+  Object.entries(data).forEach(([id,t])=>{
+    if(t.email){ // mostra solo ticket dell'utente se vuoi filtrare, qui si mostra tutto
+      let commentsHtml="";
+      if(t.comments){
+        Object.values(t.comments).forEach(c=>{
+          commentsHtml+=`<div class="comment">${c}</div>`;
+        });
+      }
+      const div=document.createElement("div");
+      div.className="ticketItem";
+      div.innerHTML=`
+        <strong>Ticket #${id}</strong><br>
+        <strong>Nome:</strong> ${t.name} | <strong>Email:</strong> ${t.email}<br>
+        <strong>Messaggio:</strong> ${t.message}<br>
+        <strong>Stato:</strong> ${t.status}<br>
+        ${commentsHtml}
+      `;
+      ticketsList.appendChild(div);
+    }
+  });
+}
+
+// LIVE UPDATE
+onValue(ref(db,"tickets"),()=>{ loadUserTickets(); });
+</script>
 </body>
 </html>
