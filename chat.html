@@ -42,7 +42,7 @@
   #toastContainer{position:fixed;top:14px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
   .toast{background:linear-gradient(180deg,#fff,#f2f6ff);padding:12px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:220px}
   .toast strong{display:block}
-  #blockedOverlay,#siteOffOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
+  #blockedOverlay, #siteOffOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;}
   @media(max-width:900px){main{flex-direction:column;padding:12px}#left{width:100%}}
 </style>
 </head>
@@ -110,6 +110,8 @@
         <div style="margin-bottom:8px">
           <button id="genCodeBtn" class="small">Genera codice temporaneo (30 min)</button>
           <span id="lastCode" style="margin-left:8px;color:gray"></span>
+          <button id="siteOffBtn" class="small" style="background:#ef4444; margin-left:12px;">Spegni sito</button>
+          <button id="siteOnBtn" class="small" style="background:#22c55e; margin-left:4px;">Riaccendi sito</button>
         </div>
         <div style="margin-bottom:8px">
           <h4>Invia notifica a utente</h4>
@@ -117,7 +119,6 @@
           <input id="notifyText" placeholder="Testo notifica" style="margin-top:6px" />
           <div style="display:flex;gap:8px;margin-top:6px">
             <button id="sendNotifyBtn" class="small">Invia notifica</button>
-            <button id="regenCodeBtn" class="small" style="background:#6b7280">Rigenera codice</button>
           </div>
         </div>
 
@@ -130,11 +131,6 @@
           <h4>Gestisci stanze</h4>
           <div id="adminRooms"></div>
         </div>
-
-        <div style="margin-top:8px">
-          <button id="turnOffSiteBtn" class="small" style="background:#ef4444">Spegni sito</button>
-        </div>
-
       </div>
 
       <div style="margin-top:12px">
@@ -175,6 +171,7 @@ const firebaseConfig = {
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
+/* ELEMENTI DOM */
 const realNameIn=document.getElementById("realName");
 const usernameIn=document.getElementById("username");
 const passwordIn=document.getElementById("password");
@@ -200,11 +197,8 @@ const lastCodeSpan=document.getElementById("lastCode");
 const notifyUserSelect=document.getElementById("notifyUserSelect");
 const notifyText=document.getElementById("notifyText");
 const sendNotifyBtn=document.getElementById("sendNotifyBtn");
-const regenCodeBtn=document.getElementById("regenCodeBtn");
 const adminRooms=document.getElementById("adminRooms");
 const adminUsers=document.getElementById("adminUsers");
-const notificationsList=document.getElementById("notificationsList");
-const turnOffSiteBtn=document.getElementById("turnOffSiteBtn");
 
 const editRealName=document.getElementById("editRealName");
 const editPassword=document.getElementById("editPassword");
@@ -214,18 +208,21 @@ const themeBtn=document.getElementById("themeBtn");
 const toastContainer=document.getElementById("toastContainer");
 const blockedOverlay=document.getElementById("blockedOverlay");
 const siteOffOverlay=document.getElementById("siteOffOverlay");
+const siteOffBtn=document.getElementById("siteOffBtn");
+const siteOnBtn=document.getElementById("siteOnBtn");
 
 let currentUser=JSON.parse(localStorage.getItem("currentUser"))||null;
 let currentRoom=null;
 
-/* UTIL */
-function showToast(title,text,timeout=6000){
-  const t=document.createElement("div");t.className="toast";
+/* TOAST */
+function showToast(title,text,timeout=5000){
+  const t=document.createElement("div"); t.className="toast";
   t.innerHTML=`<strong>${title}</strong><div style="margin-top:6px">${text}</div>`;
   toastContainer.appendChild(t);
   setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(-8px)'; setTimeout(()=>t.remove(),400)},timeout);
 }
 
+/* LOGGED USER */
 function setLoggedUser(u){
   currentUser=u;
   if(u){
@@ -242,27 +239,23 @@ function setLoggedUser(u){
   checkBlocked();
 }
 
-/* CHECK BLOCKED / SITE OFF */
+/* CHECK BLOCKED & SITE OFF */
 async function checkBlocked(){
-  if(!currentUser) return;
-  const [snap,siteSnap]=await Promise.all([
-    get(ref(db,"users/"+currentUser.username)),
-    get(ref(db,"site/off"))
-  ]);
-  const blocked = snap.exists() && snap.val().blocked;
-  const siteOff = siteSnap.exists() && siteSnap.val();
-  if(blocked){
-    blockedOverlay.style.display="flex";
-  } else{
+  if(!currentUser){
     blockedOverlay.style.display="none";
+    document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=false);
+    return;
   }
-  if(siteOff){
-    siteOffOverlay.style.display="flex";
-  } else{
-    siteOffOverlay.style.display="none";
-  }
-  const disabled = blocked || siteOff || !currentUser;
-  document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled=disabled);
+  const snapUser=await get(ref(db,"users/"+currentUser.username));
+  const snapSite=await get(ref(db,"siteOff/status"));
+  const blocked=(snapUser.exists() && snapUser.val().blocked);
+  const siteOff=(snapSite.exists() && snapSite.val()===true);
+  blockedOverlay.style.display=blocked?"flex":"none";
+  siteOffOverlay.style.display=(siteOff && !blocked)?"flex":"none";
+  document.querySelectorAll("input,button,select,textarea").forEach(el=>{
+    if(blocked || siteOff) el.disabled=true;
+    else el.disabled=false;
+  });
 }
 
 /* AUTH */
@@ -271,33 +264,41 @@ async function registerUser(){
   const username=usernameIn.value.trim();
   const password=passwordIn.value;
   if(!realName||!username||!password){ alert("Compila tutti i campi"); return; }
-  const userRef=ref(db,"users/"+username);
-  const snap=await get(userRef);
+  const snap=await get(ref(db,"users/"+username));
   if(snap.exists()){ alert("Username già usato"); return; }
   const usersSnap=await get(ref(db,"users"));
   const role=(usersSnap.exists()?"user":"admin");
-  await set(userRef,{realName,password,role});
+  await set(ref(db,"users/"+username),{realName,password,role,blocked:false});
   setLoggedUser({username,realName,role});
   showToast("Benvenuto",`Registrato come ${role}`);
-  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+  loadRooms(); populateUsers(); loadAdminUsers(); loadNotifications();
 }
 
 async function loginUser(){
   const username=usernameIn.value.trim();
   const password=passwordIn.value;
   if(!username||!password){ alert("Inserisci credenziali"); return; }
-  const userRef=ref(db,"users/"+username);
-  const snap=await get(userRef);
+  const snap=await get(ref(db,"users/"+username));
   if(!snap.exists()||snap.val().password!==password){ alert("Credenziali errate"); return; }
   const u=snap.val();
   setLoggedUser({username,realName:u.realName,role:u.role});
   showToast("Accesso",`Ciao ${u.realName}`);
-  loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+  loadRooms(); populateUsers(); loadAdminUsers(); loadNotifications();
 }
 
 btnRegister.onclick=registerUser;
 btnLogin.onclick=loginUser;
 btnLogout.onclick=()=>{ setLoggedUser(null); };
+
+/* SEND MESSAGE */
+sendBtn.onclick=sendMessage;
+msgInput.addEventListener("keydown", e=>{ if(e.key==="Enter") sendMessage(); });
+async function sendMessage(){
+  if(!currentUser||!currentRoom) return;
+  const txt=msgInput.value.trim(); if(!txt) return;
+  await push(ref(db,`chats/${currentRoom}/messages`),{user:currentUser.username,text:txt,time:Date.now()});
+  msgInput.value="";
+}
 
 /* ROOMS */
 async function loadRooms(){
@@ -313,156 +314,147 @@ async function loadRooms(){
     roomsList.appendChild(el);
     el.querySelector("button").onclick=()=>selectRoom(k);
   });
+  /* admin rooms */
   adminRooms.innerHTML="";
   if(currentUser && currentUser.role==="admin"){
     keys.forEach(k=>{
       const d=document.createElement("div");d.className="userOption";
       d.innerHTML=`<span>${k}</span><div><button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button></div>`;
       adminRooms.appendChild(d);
-      d.querySelector("button").onclick=async ()=>{ if(confirm("Eliminare stanza "+k+"?")){ await remove(ref(db,"chats/"+k)); loadRooms(); } };
+      d.querySelector("[data-del]").onclick=async ()=>{ await remove(ref(db,"chats/"+k)); loadRooms(); showToast("Stanza eliminata",k); }
     });
   }
 }
 
-function selectRoom(name){
-  currentRoom=name;
-  roomHeader.textContent=`Stanza: ${name}`;
+createRoomBtn.onclick=async ()=>{
+  if(!currentUser||!newRoomName.value.trim()) return;
+  const name=newRoomName.value.trim();
+  await set(ref(db,"chats/"+name),{messages:{},createdBy:currentUser.username});
+  loadRooms();
+  showToast("Stanza creata",name);
+};
+
+function selectRoom(r){
+  currentRoom=r;
+  roomHeader.textContent="Stanza: "+r;
   messagesEl.innerHTML="";
-  const messagesRef=ref(db,`chats/${name}/messages`);
-  onChildAdded(messagesRef,(snap)=>{
-    const m=snap.val();
-    const div=document.createElement("div");div.className="msg"+(m.user===currentUser.username?" me":"");
-    if(m.admin) div.className+=" admin";
-    div.innerHTML=`<div class="meta">${m.user}</div>${m.text}`;
-    messagesEl.appendChild(div);
+  const mRef=ref(db,`chats/${r}/messages`);
+  onValue(mRef,snap=>{
+    messagesEl.innerHTML="";
+    if(!snap.exists()) return;
+    Object.values(snap.val()).forEach(m=>{
+      const div=document.createElement("div"); div.className="msg"+(m.user===currentUser.username?" me":"");
+      div.textContent=m.text;
+      messagesEl.appendChild(div);
+    });
     messagesEl.scrollTop=messagesEl.scrollHeight;
   });
-  loadRooms();
 }
-
-createRoomBtn.onclick=async()=>{
-  const name=newRoomName.value.trim();
-  if(!name) return;
-  await set(ref(db,"chats/"+name),{createdBy:currentUser.username,messages:{}});
-  newRoomName.value="";
-  loadRooms();
-  showToast("Stanza creata",`Stanza ${name} creata con successo`);
-};
-
-sendBtn.onclick=async()=>{
-  if(!currentRoom) return alert("Seleziona stanza");
-  const txt=msgInput.value.trim();
-  if(!txt) return;
-  const m={user:currentUser.username,text:txt};
-  await push(ref(db,`chats/${currentRoom}/messages`),m);
-  msgInput.value="";
-};
-
-/* INVIO ENTER */
-msgInput.addEventListener("keyup",e=>{ if(e.key==="Enter") sendBtn.click(); });
-
-/* ADMIN PANEL */
-function populateUsersSelect(){
-  notifyUserSelect.innerHTML="";
-  get(ref(db,"users")).then(snap=>{
-    if(!snap.exists()) return;
-    Object.keys(snap.val()).forEach(u=>{
-      const o=document.createElement("option");
-      o.value=u;o.textContent=u;
-      notifyUserSelect.appendChild(o);
-    });
-  });
-}
-
-sendNotifyBtn.onclick=async()=>{
-  const user=notifyUserSelect.value;
-  const text=notifyText.value.trim();
-  if(!text) return;
-  await push(ref(db,`users/${user}/notifications`),{text,date:Date.now()});
-  notifyText.value="";
-  showToast("Notifica inviata",`A ${user}`);
-};
-
-function loadAdminUsers(){
-  adminUsers.innerHTML="";
-  get(ref(db,"users")).then(snap=>{
-    if(!snap.exists()) return;
-    Object.entries(snap.val()).forEach(([u,d])=>{
-      const div=document.createElement("div");div.className="userOption";
-      div.innerHTML=`<span>${u} (${d.role})</span>
-      <div>
-      <button data-block style="background:#facc15;padding:6px;border-radius:6px">${d.blocked?"Sblocca":"Blocca"}</button>
-      <button data-role style="background:#0078ff;padding:6px;border-radius:6px">${d.role==="admin"?"Rendi user":"Rendi admin"}</button>
-      <button data-pass style="background:#6b7280;padding:6px;border-radius:6px">Modifica password</button>
-      <button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button>
-      </div>`;
-      adminUsers.appendChild(div);
-      div.querySelector("[data-block]").onclick=async ()=>{
-        await update(ref(db,"users/"+u),{blocked:!d.blocked});
-        loadAdminUsers(); checkBlocked();
-      };
-      div.querySelector("[data-role]").onclick=async()=>{
-        await update(ref(db,"users/"+u),{role:d.role==="admin"?"user":"admin"});
-        loadAdminUsers(); setLoggedUser(currentUser); populateUsersSelect();
-      };
-      div.querySelector("[data-pass]").onclick=async()=>{
-        const newPass=prompt("Nuova password per "+u);
-        if(newPass) await update(ref(db,"users/"+u),{password:newPass});
-      };
-      div.querySelector("[data-del]").onclick=async()=>{
-        if(confirm("Eliminare "+u+"?")){ await remove(ref(db,"users/"+u)); loadAdminUsers(); populateUsersSelect(); }
-      };
-    });
-  });
-}
-
-/* SITE ON/OFF */
-async function updateSiteBtn(){
-  const siteSnap=await get(ref(db,"site/off"));
-  const isOff=siteSnap.exists() && siteSnap.val();
-  turnOffSiteBtn.textContent=isOff?"Riaccendi sito":"Spegni sito";
-}
-turnOffSiteBtn.onclick=async()=>{
-  const siteSnap=await get(ref(db,"site/off"));
-  const isOff=siteSnap.exists() && siteSnap.val();
-  await set(ref(db,"site/off"),!isOff);
-  updateSiteBtn(); checkBlocked();
-};
-onValue(ref(db,"site/off"),()=>{ updateSiteBtn(); checkBlocked(); });
-updateSiteBtn();
 
 /* PROFILE */
-saveProfileBtn.onclick=async()=>{
-  const name=editRealName.value.trim();
+saveProfileBtn.onclick=async ()=>{
+  if(!currentUser) return;
+  const real=editRealName.value.trim();
   const pass=editPassword.value.trim();
-  if(name) await update(ref(db,"users/"+currentUser.username),{realName:name});
-  if(pass) await update(ref(db,"users/"+currentUser.username),{password:pass});
-  editRealName.value=""; editPassword.value="";
+  const updates={};
+  if(real) updates.realName=real;
+  if(pass) updates.password=pass;
+  await update(ref(db,"users/"+currentUser.username),updates);
+  setLoggedUser({...currentUser,...updates});
   showToast("Profilo aggiornato","Modifiche salvate");
-  const snap=await get(ref(db,"users/"+currentUser.username));
-  setLoggedUser({username:currentUser.username,realName:snap.val().realName,role:snap.val().role});
+  editRealName.value=""; editPassword.value="";
 };
 
-/* NOTIFICHE */
-function loadNotifications(){
-  notificationsList.innerHTML="";
-  get(ref(db,"users/"+currentUser.username+"/notifications")).then(snap=>{
-    if(!snap.exists()) return;
-    Object.values(snap.val()).forEach(n=>{
-      const d=document.createElement("div");
-      d.textContent=n.text;
-      notificationsList.appendChild(d);
-    });
+/* ADMIN USER MANAGEMENT */
+async function loadAdminUsers(){
+  if(!currentUser||currentUser.role!=="admin") return;
+  const snap=await get(ref(db,"users"));
+  adminUsers.innerHTML="";
+  notifyUserSelect.innerHTML='<option value="">Seleziona</option>';
+  if(!snap.exists()) return;
+  Object.entries(snap.val()).forEach(([u,v])=>{
+    const div=document.createElement("div"); div.className="userOption";
+    div.innerHTML=`<span>${u} (${v.role})</span>
+      <div>
+        <button data-block style="background:#facc15;padding:6px;border-radius:6px">Blocca</button>
+        <button data-unblock style="background:#22c55e;padding:6px;border-radius:6px">Sblocca</button>
+        <button data-role style="background:#0078ff;padding:6px;border-radius:6px">Toggle ruolo</button>
+        <button data-del style="background:#ef4444;padding:6px;border-radius:6px">Elimina</button>
+      </div>`;
+    adminUsers.appendChild(div);
+    notifyUserSelect.innerHTML+=`<option value="${u}">${u}</option>`;
+    div.querySelector("[data-block]").onclick=()=>{ update(ref(db,"users/"+u),{blocked:true}); checkBlocked(); showToast("Utente bloccato",u); }
+    div.querySelector("[data-unblock]").onclick=()=>{ update(ref(db,"users/"+u),{blocked:false}); checkBlocked(); showToast("Utente sbloccato",u); }
+    div.querySelector("[data-role]").onclick=async ()=>{
+      const newRole=(v.role==="admin")?"user":"admin"; await update(ref(db,"users/"+u),{role:newRole}); loadAdminUsers(); showToast("Ruolo modificato",`${u} → ${newRole}`);
+    }
+    div.querySelector("[data-del]").onclick=async ()=>{
+      if(confirm(`Eliminare ${u}?`)){ await remove(ref(db,"users/"+u)); loadAdminUsers(); showToast("Utente eliminato",u);}
+    }
   });
+}
+
+/* NOTIFICHE */
+sendNotifyBtn.onclick=async ()=>{
+  const user=notifyUserSelect.value; if(!user) return;
+  const txt=notifyText.value.trim(); if(!txt) return;
+  await push(ref(db,`notifications/${user}`),{text:txt,time:Date.now()});
+  notifyText.value="";
+  showToast("Notifica inviata",user);
+}
+
+async function loadNotifications(){
+  if(!currentUser) return;
+  const notifRef=ref(db,"notifications/"+currentUser.username);
+  onChildAdded(notifRef,snap=>{
+    if(!snap.exists()) return;
+    const div=document.createElement("div");
+    div.textContent=snap.val().text;
+    document.getElementById("notificationsList").appendChild(div);
+  });
+}
+
+/* GENERA CODICE TEMPORANEO */
+genCodeBtn.onclick=async ()=>{
+  const code=Math.random().toString(36).substring(2,8).toUpperCase();
+  const expire=Date.now()+30*60*1000;
+  await set(ref(db,"tempCode"),{code,expire});
+  lastCodeSpan.textContent=code;
+  showToast("Codice generato",code);
+}
+
+useCodeBtn.onclick=async ()=>{
+  const snap=await get(ref(db,"tempCode"));
+  if(!snap.exists()){ alert("Nessun codice"); return; }
+  const {code,expire}=snap.val();
+  if(codeInput.value.toUpperCase()!==code){ alert("Codice errato"); return; }
+  if(Date.now()>expire){ alert("Codice scaduto"); return; }
+  showToast("Codice valido","Ora puoi creare stanza");
+  codeInput.value="";
+}
+
+/* SITE OFF/ON */
+siteOffBtn.onclick=async ()=>{
+  await set(ref(db,"siteOff/status"),true);
+  checkBlocked();
+  showToast("Sito spento","Gli utenti non loggati non possono usare il sito");
+}
+
+siteOnBtn.onclick=async ()=>{
+  await set(ref(db,"siteOff/status"),false);
+  checkBlocked();
+  showToast("Sito riacceso","Tutti gli utenti possono accedere");
 }
 
 /* THEME */
-themeBtn.onclick=()=>{
-  const t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
-  document.documentElement.setAttribute("data-theme",t);
-};
+let dark=false;
+themeBtn.onclick=()=>{ dark=!dark; document.documentElement.setAttribute("data-theme",dark?"dark":"light"); themeBtn.textContent=dark?"☀️":"🌙"; }
 
-if(currentUser) setLoggedUser(currentUser); loadRooms(); populateUsersSelect(); loadAdminUsers(); loadNotifications();
+/* INIT */
+setLoggedUser(currentUser);
+loadRooms();
+loadAdminUsers();
+loadNotifications();
 </script>
 </body>
 </html>
