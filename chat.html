@@ -130,10 +130,6 @@
           <h4>Gestisci stanze</h4>
           <div id="adminRooms"></div>
         </div>
-
-        <div style="margin-top:10px">
-          <label><input type="checkbox" id="toggleSite"> Spegni sito</label>
-        </div>
       </div>
 
       <div style="margin-top:12px">
@@ -149,7 +145,7 @@
 
 <div id="blockedOverlay">
   <h1>Sei stato bloccato</h1>
-  <p>L'amministratore ti ha bloccato o il sito è spento e non puoi più usare il sito.</p>
+  <p>L'amministratore ti ha bloccato e non puoi più usare il sito.</p>
 </div>
 
 <script type="module">
@@ -202,11 +198,9 @@ const saveProfileBtn=document.getElementById("saveProfileBtn");
 const themeBtn=document.getElementById("themeBtn");
 const toastContainer=document.getElementById("toastContainer");
 const blockedOverlay=document.getElementById("blockedOverlay");
-const toggleSite=document.getElementById("toggleSite");
 
 let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
 let currentRoom = null;
-let siteOff = false;
 
 /* TOAST */
 function showToast(title,text,timeout=6000){
@@ -233,23 +227,14 @@ function setLoggedUser(u){
   checkBlocked();
 }
 
-/* CHECK BLOCKED / SITE OFF */
+/* CHECK BLOCKED */
 async function checkBlocked(){
-  let blocked = false;
-  if(currentUser){
-    const snap = await get(ref(db,"users/"+currentUser.username));
-    blocked = snap.exists() && snap.val().blocked;
-  }
-  if(siteOff) blocked = true;
+  if(!currentUser) return;
+  const snap = await get(ref(db,"users/"+currentUser.username));
+  const blocked = snap.exists() && snap.val().blocked;
   blockedOverlay.style.display = blocked ? "flex" : "none";
   document.querySelectorAll("input,button,select,textarea").forEach(el=>el.disabled = blocked);
 }
-
-/* TOGGLE SITE ON/OFF */
-toggleSite?.addEventListener("change", async (e)=>{
-  siteOff = e.target.checked;
-  checkBlocked();
-});
 
 themeBtn.onclick=()=>{ 
   document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"":"dark"; 
